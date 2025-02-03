@@ -54,7 +54,7 @@ fun EmulatorSettings(
             modifier = Modifier.padding(8.dp)
         ) {
             Text(cartridgeHeader.name)
-            Text("MBC: ${cartridgeHeader.mbc}")
+            Text(cartridgeHeader.type)
         }
     }
 }

@@ -45,8 +45,6 @@ class Emulator(
         val header = DefaultCartridgeHeader(rom)
         _cartridgeHeader.value = header
         bus.load(cartridge)
-
-        println("Cartridge loaded, MBC: ${header.mbc}, Name: ${header.name}")
     }
 
     fun loadBios(bios: ByteArray) {
