@@ -155,12 +155,13 @@ class Emulator(
 
     private fun handleInterrupts() {
         val interrupts = bus.interruptFlags.toInt() and bus.interruptEnabled.toInt()
-        for (i in 0..4) {
-            if ((interrupts shr i and 1) == 1) {
-                cpu.handleInterrupt(i)
+        if (interrupts != 0) {
+            for (i in 0..4) {
+                if ((interrupts shr i and 1) == 1) {
+                    cpu.handleInterrupt(i)
+                }
             }
         }
-
         cpu.updateIme()
     }
 
@@ -168,7 +169,7 @@ class Emulator(
         if (internalPowerSwitch) {
             powerOff()
         } else {
-            runUncapped()
+            powerOn()
         }
     }
 }
