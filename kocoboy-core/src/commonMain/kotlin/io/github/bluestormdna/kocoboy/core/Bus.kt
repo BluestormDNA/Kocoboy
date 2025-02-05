@@ -48,7 +48,7 @@ class Bus {
     }
 
     private fun insertionSortOamOrderBuffer(indexes: IntArray, lastIndexExclusive: Int) {
-        for (i in 1 ..< lastIndexExclusive) {
+        for (i in 1..<lastIndexExclusive) {
             val keyIndex = indexes[i]
             val keyValue = oam[keyIndex + 1].toInt() and 0xFF
             var j = i - 1
@@ -70,11 +70,25 @@ class Bus {
     }
 
     // JOYPAD Regs
-    var JOYP by ArrayNamedAccessor(io, 0x00)
+    var JOYP
+        get() = io[0x00]
+        set(value) {
+            io[0x00] = value
+        }
 
     // PPU Regs
-    var LY by ArrayNamedAccessor(io, 0x44)  //FF44 - LY - LCDC Y-Coordinate (R) bypasses on write always 0
-    var STAT by ArrayNamedAccessor(io, 0x41) //FF41 - STAT - LCDC Status (R/W)
+    //FF44 - LY - LCDC Y-Coordinate (R) bypasses on write always 0
+    var LY
+        get() = io[0x44]
+        set(value) {
+            io[0x44] = value
+        }
+    //FF41 - STAT - LCDC Status (R/W)
+    var STAT
+        get() = io[0x41]
+        set(value) {
+            io[0x41] = value
+        }
     val LCDC get() = io[0x40] //FF40 - LCDC - LCD Control (R/W)
     val SCY get() = io[0x42] //FF42 - SCY - Scroll Y (R/W)
     val SCX get() = io[0x43] //FF43 - SCX - Scroll X (R/W)
@@ -86,9 +100,24 @@ class Bus {
     val OBP1 get() = io[0x49] //FF49 - OBP1 - Object Palette 1 Data (R/W) - Non CGB Mode Only
 
     // Timer IO Regs
-    var DIV: Byte by ArrayNamedAccessor(io, 0x04) //FF04 - DIV - Divider Register (R/W)
-    var TIMA: Byte by ArrayNamedAccessor(io, 0x05)  //FF05 - TIMA - Timer counter (R/W)
-    var TMA: Byte by ArrayNamedAccessor(io, 0x06)  //FF06 - TMA - Timer Modulo (R/W)
+    //FF04 - DIV - Divider Register (R/W)
+    var DIV
+        get() = io[0x04]
+        set(value) {
+            io[0x04] = value
+        }
+    //FF05 - TIMA - Timer counter (R/W)
+    var TIMA
+        get() = io[0x05]
+        set(value) {
+            io[0x05] = value
+        }
+    //FF06 - TMA - Timer Modulo (R/W)
+    var TMA
+        get() = io[0x06]
+        set(value) {
+            io[0x06] = value
+        }
     val TAC_ENABLED: Boolean //FF07 - TAC - Timer Control (R/W)
         get() {
             return (io[0x07] and 0x4) != 0.toByte()
