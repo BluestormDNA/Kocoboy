@@ -27,15 +27,20 @@ class Joypad {
 
     fun update(bus: Bus) {
         val JOYP = bus.JOYP
+
         if (!isBit(4, JOYP)) { // DPAD
             bus.JOYP = ((JOYP and MODE_MASK) or pad)
             if (pad != IDLE) bus.requestInterrupt(JOYPAD_INTERRUPT)
+            return
         }
+
         if (!isBit(5, JOYP)) { // Buttons
             bus.JOYP = ((JOYP and MODE_MASK) or buttons)
             if (buttons != IDLE) bus.requestInterrupt(JOYPAD_INTERRUPT)
+            return
         }
-        if ((JOYP.toInt() and UNSELECT_MASK) == UNSELECT_MASK) bus.JOYP = RESET
+
+        bus.JOYP = RESET
     }
 
     companion object {
