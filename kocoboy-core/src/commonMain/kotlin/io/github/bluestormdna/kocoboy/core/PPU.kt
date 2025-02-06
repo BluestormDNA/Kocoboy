@@ -308,10 +308,10 @@ class PPU(private val host: Host) {
         private const val LCD_INTERRUPT: Byte = 0x2
 
         object Mode {
-            val HBLANK = 0
-            val VBLANK = 1
-            val OAM = 2
-            val VRAM = 3
+            const val HBLANK = 0
+            const val VBLANK = 1
+            const val OAM = 2
+            const val VRAM = 3
         }
     }
 }
