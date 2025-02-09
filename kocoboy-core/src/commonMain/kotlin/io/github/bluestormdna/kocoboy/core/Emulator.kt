@@ -22,10 +22,10 @@ import kotlin.time.measureTime
 class Emulator(
     private val host: Host,
     private val ppu: PPU = PPU(host),
-    private val bus: Bus = Bus(),
+    private val joypad: Joypad = Joypad(),
+    private val bus: Bus = Bus(joypad),
     private val timer: Timer = Timer(),
     private val cpu: CPU = CPU(bus),
-    private val joypad: Joypad = Joypad(),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
 ) {
 
@@ -84,7 +84,6 @@ class Emulator(
                         frameCycles += cycles
                         timer.update(cycles, bus)
                         ppu.update(cycles, bus)
-                        joypad.update(bus)
                         handleInterrupts()
                         cycleCounter++
                     }
@@ -133,7 +132,6 @@ class Emulator(
                 val cycles = cpu.execute()
                 timer.update(cycles, bus)
                 ppu.update(cycles, bus)
-                joypad.update(bus)
                 handleInterrupts()
             }
             reset()
@@ -146,7 +144,7 @@ class Emulator(
     }
 
     fun handleInputPress(input: JoypadInputs) {
-        joypad.press(input.bits)
+        joypad.press(input.bits, bus)
     }
 
     fun handleInputRelease(input: JoypadInputs) {

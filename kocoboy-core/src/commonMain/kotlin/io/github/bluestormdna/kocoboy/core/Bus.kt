@@ -6,7 +6,9 @@ import kotlin.experimental.and
 import kotlin.experimental.or
 
 @OptIn(ExperimentalStdlibApi::class)
-class Bus {
+class Bus(
+    private val joypad: Joypad,
+) {
 
     private val bootRoom = ByteArray(0x100)
     private var cartridge: Cartridge = EmptySlot()
@@ -68,13 +70,6 @@ class Bus {
     fun load(bios: ByteArray) {
         bios.copyInto(bootRoom)
     }
-
-    // JOYPAD Regs
-    var JOYP
-        get() = io[0x00]
-        set(value) {
-            io[0x00] = value
-        }
 
     // PPU Regs
     //FF44 - LY - LCDC Y-Coordinate (R) bypasses on write always 0
@@ -187,7 +182,11 @@ class Bus {
             in 0xF000..0xFDFF -> wRam1[addr and 0xFFF].toInt() and 0xFF
             in 0xFE00..0xFE9F -> oam[addr and 0xFF].toInt() and 0xFF
             in 0xFEA0..0xFEFF -> 0x00 // Not usable
-            in 0xFF00..0xFF7F -> io[addr and 0x7F].toInt() and 0xFF
+            in 0xFF00..0xFF7F -> {
+                // JOYPAD
+                if (addr == 0xFF00) return joypad.read().toInt() and 0xFF
+                return io[addr and 0x7F].toInt() and 0xFF
+            }
             in 0xFF80..0xFFFF -> hRam[addr and 0x7F].toInt() and 0xFF
             else -> throw IllegalStateException("Attempting to read to ${addr.toHexString()}")
         }
@@ -208,6 +207,12 @@ class Bus {
             in 0xFE00..0xFE9F -> oam[addr and 0xFF] = value.toByte()
             in 0xFEA0..0xFEFF -> Unit // Not usable
             in 0xFF00..0xFF7F -> { // IO
+                // JOYPAD
+                if(addr == 0xFF00) {
+                    joypad.write(value.toByte())
+                    return
+                }
+
                 val ioValue = when (addr) {
                     0xFF0F -> value or 0xE0
                     0xFF04, 0xFF44 -> 0
