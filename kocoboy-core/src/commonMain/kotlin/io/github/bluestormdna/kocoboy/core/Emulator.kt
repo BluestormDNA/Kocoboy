@@ -22,8 +22,9 @@ import kotlin.time.measureTime
 class Emulator(
     private val host: Host,
     private val ppu: PPU = PPU(host),
+    private val apu: APU = APU(host),
     private val joypad: Joypad = Joypad(),
-    private val bus: Bus = Bus(joypad),
+    private val bus: Bus = Bus(apu, joypad),
     private val timer: Timer = Timer(),
     private val cpu: CPU = CPU(bus),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
@@ -84,6 +85,7 @@ class Emulator(
                         frameCycles += cycles
                         timer.update(cycles, bus)
                         ppu.update(cycles, bus)
+                        apu.update(cycles)
                         handleInterrupts()
                         cycleCounter++
                     }
@@ -97,7 +99,7 @@ class Emulator(
                     // delay doesn't have enough resolution so try to sleep less
                     // and busy wait at the end
                     // todo review this per platform as they seem to have differences
-                    // and actual expect this
+                    // and actual/expect heuristics
                     delay(sleepTime.inWholeMilliseconds / 2)
                     //println("postSleepElapsed: ${startOfFrame.elapsedNow() - preSleepTime}")
                 }
@@ -110,7 +112,7 @@ class Emulator(
                 }
 
                 //println("targetTime: $targetTime frameTime: $frameTime sleepTime: $sleepTime")
-                //println("End of frame: ${startOfFrameas.elapsedNow()}")
+                //println("End of frame: ${startOfFrame.elapsedNow()}")
             }
 
             reset()
@@ -132,6 +134,7 @@ class Emulator(
                 val cycles = cpu.execute()
                 timer.update(cycles, bus)
                 ppu.update(cycles, bus)
+                apu.update(cycles)
                 handleInterrupts()
             }
             reset()

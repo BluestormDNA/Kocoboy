@@ -7,6 +7,7 @@ import kotlin.experimental.or
 
 @OptIn(ExperimentalStdlibApi::class)
 class Bus(
+    private val apu: APU,
     private val joypad: Joypad,
 ) {
 
@@ -154,6 +155,22 @@ class Bus(
         io[0x48] = 0xFF.toByte()
         io[0x49] = 0xFF.toByte()
         io[0x00] = 0xFF.toByte()
+
+        apu.write(0x10, 0x80.toByte())
+        apu.write(0x11, 0xBF.toByte())
+        apu.write(0x12, 0xF3.toByte())
+        apu.write(0x14, 0xBF.toByte())
+        apu.write(0x16, 0x3F.toByte())
+        apu.write(0x19, 0xBF.toByte())
+        apu.write(0x1A, 0x7F.toByte())
+        apu.write(0x1B, 0xFF.toByte())
+        apu.write(0x1C, 0x9F.toByte())
+        apu.write(0x1E, 0xBF.toByte())
+        apu.write(0x20, 0xFF.toByte())
+        apu.write(0x23, 0xBF.toByte())
+        apu.write(0x24, 0x77.toByte())
+        apu.write(0x25, 0xF3.toByte())
+        apu.write(0x26, 0xF1.toByte())
     }
 
     private val onBootRom: Boolean
@@ -185,6 +202,10 @@ class Bus(
             in 0xFF00..0xFF7F -> {
                 // JOYPAD
                 if (addr == 0xFF00) return joypad.read().toInt() and 0xFF
+                // SPU
+                if(addr in 0xFF10..0xFF3F) {
+                    return apu.read(addr and 0xFF).toInt() and 0xFF
+                }
                 return io[addr and 0x7F].toInt() and 0xFF
             }
             in 0xFF80..0xFFFF -> hRam[addr and 0x7F].toInt() and 0xFF
@@ -210,6 +231,12 @@ class Bus(
                 // JOYPAD
                 if(addr == 0xFF00) {
                     joypad.write(value.toByte())
+                    return
+                }
+
+                // SPU
+                if(addr in 0xFF10..0xFF3F) {
+                    apu.write(addr and 0xFF, value.toByte())
                     return
                 }
 
