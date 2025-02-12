@@ -6,10 +6,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import io.github.bluestormdna.kocoboy.AudioPlayer
 import io.github.bluestormdna.kocoboy.core.Emulator
 import io.github.bluestormdna.kocoboy.core.JoypadInputs
 import io.github.bluestormdna.kocoboy.createImageBitmapFromIntArray
 import io.github.bluestormdna.kocoboy.host.Host
+import io.github.bluestormdna.kocoboy.platformAudioPlayer
 import io.github.bluestormdna.kocoboy.ui.dmg.ClassicColorTheme
 import io.github.bluestormdna.kocoboy.ui.dmg.ClassicScreenTheme
 import io.github.bluestormdna.kocoboy.ui.dmg.ColorTheme
@@ -20,7 +22,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class MainViewModel : ViewModel() {
+class MainViewModel(
+    private val platformAudioPlayer: AudioPlayer
+) : ViewModel() {
 
     private val _colorTheme = MutableStateFlow<ColorTheme>(ClassicColorTheme)
     val colorTheme = _colorTheme.asStateFlow()
@@ -49,7 +53,9 @@ class MainViewModel : ViewModel() {
             frame.value = createImageBitmapFromIntArray(frameBuffer, SCREEN_WIDTH, SCREEN_HEIGHT)
         }
 
-        override fun play() = Unit // Todo
+        override fun play(sampleBuffer: ByteArray) {
+            platformAudioPlayer.play(sampleBuffer)
+        }
     }
 
     private val emu = Emulator(host)
@@ -81,7 +87,11 @@ class MainViewModel : ViewModel() {
 
     companion object {
         val factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer { MainViewModel() }
+            initializer {
+                MainViewModel(
+                    platformAudioPlayer = platformAudioPlayer()
+                )
+            }
         }
 
         const val SCREEN_WIDTH = 160
