@@ -868,9 +868,9 @@ val dropShadow = Brush.sweepGradient(
 )
 
 val concaveShadow = Brush.verticalGradient(
-    0f to Color(0x809B9899),
-    0.7f to Color(0x80EAE8E4),
-    1f to Color(0x80FFFDF8),
+    0f to Color(0x409B9899),
+    0.7f to Color(0x40EAE8E4),
+    1f to Color(0x40FFFDF8),
 )
 
 val rubberShadow = Brush.verticalGradient(

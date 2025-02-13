@@ -14,11 +14,11 @@ import io.github.bluestormdna.kocoboy.ui.dmg.ColorTheme
 import io.github.bluestormdna.kocoboy.ui.dmg.GameBoy
 import io.github.bluestormdna.kocoboy.ui.dmg.GamePad
 import io.github.bluestormdna.kocoboy.ui.dmg.HeadPhoneJack
-import io.github.bluestormdna.kocoboy.ui.dmg.PlayItLoud
 import io.github.bluestormdna.kocoboy.ui.dmg.PowerRow
 import io.github.bluestormdna.kocoboy.ui.dmg.ScreenBezel
 import io.github.bluestormdna.kocoboy.ui.dmg.SelectStart
 import io.github.bluestormdna.kocoboy.ui.dmg.Speaker
+import io.github.bluestormdna.kocoboy.ui.dmg.playItLoudThemeList
 import io.github.bluestormdna.kocoboy.ui.theme.KocoBoyTheme
 import kocoboy.composeapp.generated.resources.Res
 import kocoboy.composeapp.generated.resources.reference
@@ -60,14 +60,7 @@ fun GameBoyPreview() {
 }
 
 class ThemeProvider : PreviewParameterProvider<ColorTheme> {
-    override val values = listOf(
-        PlayItLoud.vibrantYellow,
-        PlayItLoud.radiantRed,
-        PlayItLoud.gorgeousGreen,
-        PlayItLoud.coolBlue,
-        PlayItLoud.traditionalWhite,
-        PlayItLoud.deepBlack,
-    ).asSequence()
+    override val values = playItLoudThemeList.asSequence()
 }
 
 @Preview

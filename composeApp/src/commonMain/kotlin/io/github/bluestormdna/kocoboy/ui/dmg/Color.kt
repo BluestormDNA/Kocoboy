@@ -20,11 +20,10 @@ val Olive = Color(0xFF9AA13C)
 val SelectStartColor = Color(0xFFA8A29F)
 
 // Play it aloud!
-// todo actual correct colors...
-val YellowBody = Color(0xFFFFC73B)
-val RedBody = Color(0xFFF44336)
-val BlueBody = Color(0xFF3F51B5)
-val GreenBody = Color(0xFF4CAF50)
+val YellowBody = Color(0xFFDEC33A)
+val RedBody = Color(0xFFEE2919)
+val BlueBody = Color(0xFF2348A2)
+val GreenBody = Color(0xFF289969)
 val BlackBody = Color(0xFF0A0A0A)
 val WhiteBody = Color(0xFFEBEBEB)
 val DarkGrayComponent = Color(0xFF101010)

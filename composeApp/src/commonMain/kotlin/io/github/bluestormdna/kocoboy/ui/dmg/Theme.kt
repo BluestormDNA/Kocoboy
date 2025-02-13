@@ -2,14 +2,16 @@ package io.github.bluestormdna.kocoboy.ui.dmg
 
 import androidx.compose.ui.graphics.Color
 
-object PlayItLoud {
-    val vibrantYellow = VibrantYellowColorTheme
-    val gorgeousGreen = GorgeousGreenColorTheme
-    val radiantRed = RadiantRedColorTheme
-    val coolBlue = CoolBlueColorTheme
-    val traditionalWhite = TraditionalWhiteColorTheme
-    val deepBlack = DeepBlackColorTheme
-}
+val playItLoudThemeList = listOf(
+    VibrantYellowColorTheme,
+    GorgeousGreenColorTheme,
+    RadiantRedColorTheme,
+    CoolBlueColorTheme,
+    TraditionalWhiteColorTheme,
+    DeepBlackColorTheme,
+)
+
+val themeList = playItLoudThemeList + ClassicColorTheme
 
 sealed class ColorTheme(
     val body: Color,
