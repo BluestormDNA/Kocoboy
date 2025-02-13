@@ -85,6 +85,10 @@ class MainViewModel(
 
     fun powerSwitch() = emu.powerSwitch()
 
+    fun themeChange(colorTheme: ColorTheme) {
+        _colorTheme.value = colorTheme
+    }
+
     companion object {
         val factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {

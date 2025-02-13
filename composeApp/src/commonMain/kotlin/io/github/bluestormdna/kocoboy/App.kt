@@ -47,8 +47,8 @@ import io.github.bluestormdna.kocoboy.ui.dmg.UnitShape
 import io.github.bluestormdna.kocoboy.ui.dmg.horizontalScreenShadow
 import io.github.bluestormdna.kocoboy.ui.dmg.verticalScreenShadow
 import io.github.bluestormdna.kocoboy.ui.keyboardInputMap
-import io.github.bluestormdna.kocoboy.ui.main.EmulatorSettings
 import io.github.bluestormdna.kocoboy.ui.main.MainViewModel
+import io.github.bluestormdna.kocoboy.ui.main.SideBar
 import io.github.bluestormdna.kocoboy.ui.theme.KocoBoyTheme
 import io.github.vinceglb.filekit.compose.rememberFilePickerLauncher
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -125,11 +125,12 @@ fun App() {
                         enter = fadeIn() + expandHorizontally(),
                         exit = fadeOut() + shrinkHorizontally(),
                     ) {
-                        EmulatorSettings(
+                        SideBar(
                             cartridgeHeader = cartridgeHeader,
                             onLoadBios = { },
                             onLoadRom = filePicker::launch,
                             onPowerSwitch = vm::powerSwitch,
+                            onThemeChange = vm::themeChange,
                         )
                     }
                 }

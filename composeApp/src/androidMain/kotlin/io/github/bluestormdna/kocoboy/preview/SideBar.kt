@@ -3,15 +3,16 @@ package io.github.bluestormdna.kocoboy.preview
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.bluestormdna.kocoboy.core.cartridge.EmptyCartridgeHeader
-import io.github.bluestormdna.kocoboy.ui.main.EmulatorSettings
+import io.github.bluestormdna.kocoboy.ui.main.SideBar
 
 @Preview
 @Composable
-fun EmulatorSettingsPreview() {
-    EmulatorSettings(
+fun SideBarPreview() {
+    SideBar(
         cartridgeHeader = EmptyCartridgeHeader(),
         onLoadBios = {},
         onLoadRom = {},
         onPowerSwitch = {},
+        onThemeChange = {},
     )
 }
