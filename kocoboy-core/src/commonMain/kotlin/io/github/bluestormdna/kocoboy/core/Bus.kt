@@ -9,6 +9,8 @@ import kotlin.experimental.or
 class Bus(
     private val apu: APU,
     private val joypad: Joypad,
+    private val timer: Timer,
+    private val ppu: PPU,
 ) {
 
     private val bootRoom = ByteArray(0x100)
@@ -72,57 +74,6 @@ class Bus(
         bios.copyInto(bootRoom)
     }
 
-    // PPU Regs
-    //FF44 - LY - LCDC Y-Coordinate (R) bypasses on write always 0
-    var LY
-        get() = io[0x44]
-        set(value) {
-            io[0x44] = value
-        }
-    //FF41 - STAT - LCDC Status (R/W)
-    var STAT
-        get() = io[0x41]
-        set(value) {
-            io[0x41] = value
-        }
-    val LCDC get() = io[0x40] //FF40 - LCDC - LCD Control (R/W)
-    val SCY get() = io[0x42] //FF42 - SCY - Scroll Y (R/W)
-    val SCX get() = io[0x43] //FF43 - SCX - Scroll X (R/W)
-    val LYC get() = io[0x45] //FF45 - LYC - LY Compare(R/W)
-    val WY get() = io[0x4A] //FF4A - WY - Window Y Position (R/W)
-    val WX get() = io[0x4B] //FF4B - WX - Window X Position minus 7 (R/W)
-    val BGP get() = io[0x47] //FF47 - BGP - BG Palette Data(R/W) - Non CGB Mode Only
-    val OBP0 get() = io[0x48] //FF48 - OBP0 - Object Palette 0 Data (R/W) - Non CGB Mode Only
-    val OBP1 get() = io[0x49] //FF49 - OBP1 - Object Palette 1 Data (R/W) - Non CGB Mode Only
-
-    // Timer IO Regs
-    //FF04 - DIV - Divider Register (R/W)
-    var DIV
-        get() = io[0x04]
-        set(value) {
-            io[0x04] = value
-        }
-    //FF05 - TIMA - Timer counter (R/W)
-    var TIMA
-        get() = io[0x05]
-        set(value) {
-            io[0x05] = value
-        }
-    //FF06 - TMA - Timer Modulo (R/W)
-    var TMA
-        get() = io[0x06]
-        set(value) {
-            io[0x06] = value
-        }
-    val TAC_ENABLED: Boolean //FF07 - TAC - Timer Control (R/W)
-        get() {
-            return (io[0x07] and 0x4) != 0.toByte()
-        }
-    val TAC_FREQ: Int
-        get() {
-            return io[0x07].toInt() and 0x3
-        }
-
     val interruptFlags: Byte get() = io[0x0F]
     val interruptEnabled: Byte get() = hRam[0x7F]
 
@@ -135,26 +86,10 @@ class Bus(
         //HardCoded to FF to identify DMG as 00 is GBC
         io[0x4D] = 0xFF.toByte()
 
-        io[0x10] = 0x80.toByte()
-        io[0x11] = 0xBF.toByte()
-        io[0x12] = 0xF3.toByte()
-        io[0x14] = 0xBF.toByte()
-        io[0x16] = 0x3F.toByte()
-        io[0x19] = 0xBF.toByte()
-        io[0x1A] = 0x7F.toByte()
-        io[0x1B] = 0xFF.toByte()
-        io[0x1C] = 0x9F.toByte()
-        io[0x1E] = 0xBF.toByte()
-        io[0x20] = 0xFF.toByte()
-        io[0x23] = 0xBF.toByte()
-        io[0x24] = 0x77.toByte()
-        io[0x25] = 0xF3.toByte()
-        io[0x26] = 0xF1.toByte()
-        io[0x40] = 0x91.toByte()
-        io[0x47] = 0xFC.toByte()
-        io[0x48] = 0xFF.toByte()
-        io[0x49] = 0xFF.toByte()
-        io[0x00] = 0xFF.toByte()
+        ppu.write(0x40, 0x91.toByte(), this)
+        ppu.write(0x47, 0xFC.toByte(), this)
+        ppu.write(0x48, 0xFF.toByte(), this)
+        ppu.write(0x49, 0xFF.toByte(), this)
 
         apu.write(0x10, 0x80.toByte())
         apu.write(0x11, 0xBF.toByte())
@@ -200,13 +135,13 @@ class Bus(
             in 0xFE00..0xFE9F -> oam[addr and 0xFF].toInt() and 0xFF
             in 0xFEA0..0xFEFF -> 0x00 // Not usable
             in 0xFF00..0xFF7F -> {
-                // JOYPAD
-                if (addr == 0xFF00) return joypad.read().toInt() and 0xFF
-                // SPU
-                if(addr in 0xFF10..0xFF3F) {
-                    return apu.read(addr and 0xFF).toInt() and 0xFF
+                when(val ioAddress = addr and 0x7F) {
+                    0x00 -> joypad.read().toInt() and 0xFF
+                    in 0x03..0x07 -> timer.read(ioAddress).toInt() and 0xFF
+                    in 0x10..0x3F -> apu.read(ioAddress).toInt() and 0xFF
+                    in 0x40..0x4B -> ppu.read(ioAddress).toInt() and 0xFF
+                    else -> io[ioAddress].toInt() and 0xFF
                 }
-                return io[addr and 0x7F].toInt() and 0xFF
             }
             in 0xFF80..0xFFFF -> hRam[addr and 0x7F].toInt() and 0xFF
             else -> throw IllegalStateException("Attempting to read to ${addr.toHexString()}")
@@ -228,34 +163,26 @@ class Bus(
             in 0xFE00..0xFE9F -> oam[addr and 0xFF] = value.toByte()
             in 0xFEA0..0xFEFF -> Unit // Not usable
             in 0xFF00..0xFF7F -> { // IO
-                // JOYPAD
-                if(addr == 0xFF00) {
-                    joypad.write(value.toByte())
-                    return
-                }
-
-                // SPU
-                if(addr in 0xFF10..0xFF3F) {
-                    apu.write(addr and 0xFF, value.toByte())
-                    return
-                }
-
-                val ioValue = when (addr) {
-                    0xFF0F -> value or 0xE0
-                    0xFF04, 0xFF44 -> 0
-                    0xFF46 -> handleDma(value)
-                    else -> value
-                }
-                io[addr and 0x7F] = ioValue.toByte()
-
-                //Temp Serial Link output for debug
-                if (addr == 0xFF02 && value == 0x81) {
-                    print(readByte(0xFF01).toChar())
+                when(val ioAddress = addr and 0x7F) {
+                    0x00 -> joypad.write(value.toByte())
+                    0x02 -> handleSerialLink(value)
+                    0x0F -> io[ioAddress] = (value or 0xE0).toByte() // todo use interrupt field
+                    in 0x03..0x07 -> timer.write(ioAddress, value.toByte())
+                    in 0x10..0x3F -> apu.write(ioAddress, value.toByte())
+                    in 0x40..0x4B -> ppu.write(ioAddress, value.toByte(), this) // Lyc can cause interrupts on write
+                    else -> io[ioAddress] = value.toByte()
                 }
             }
 
             in 0xFF80..0xFFFF -> hRam[addr and 0x7F] = value.toByte()
             else -> throw IllegalStateException("Attempting to write ${byte.toHexString()} to ${addr.toHexString()}")
+        }
+    }
+
+    private fun handleSerialLink(value: Int) {
+        //Temp Serial Link output for debug
+        if (value == 0x81) {
+            print(readByte(0xFF01).toChar())
         }
     }
 
@@ -267,8 +194,8 @@ class Bus(
         return vRam[addr and 0x1FFF].toInt() and 0xFF
     }
 
-    private fun handleDma(value: Int): Int {
-        val addr = value shl 8
+    fun handleDma(value: Byte): Int {
+        val addr = (value.toInt() and 0xFF) shl 8
         for (i in oam.indices) {
             oam[i] = readByte(addr + i).toByte()
         }

@@ -1144,8 +1144,7 @@ class CPU(private val bus: Bus) {
         //A: 00 F: 00 B: 00 C: 00 D: 00 E: 00 H: 00 L: 00 SP: 0000 PC: 00:0000 (31 FE FF AF)
         return "A: ${A.toHexString(byteLengthFormat)} F: ${F.toHexString(byteLengthFormat)} B: ${B.toHexString(byteLengthFormat)} C: ${C.toHexString(byteLengthFormat)} D: ${D.toHexString(byteLengthFormat)}" +
                 " E: ${E.toHexString(byteLengthFormat)} H: ${H.toHexString(byteLengthFormat)} L: ${L.toHexString(byteLengthFormat)} SP: ${SP.toHexString(shortLengthFormat)}" +
-                " PC: 00:${PC.toHexString(shortLengthFormat)} (${bus.readByte(PC + 0).toHexString(byteLengthFormat)} ${bus.readByte(PC + 1).toHexString(byteLengthFormat)} ${bus.readByte(PC + 2).toHexString(byteLengthFormat)} ${bus.readByte(PC + 3).toHexString(byteLengthFormat)})" +
-                " TIMA: ${bus.TIMA.toHexString(byteLengthFormat)} IF: ${bus.interruptFlags.toHexString(byteLengthFormat)} DIV: ${bus.DIV.toHexString(byteLengthFormat)} divCounter:" // ${timer.divCounter} timerCounter: ${timer.timerCounter}
+                " PC: 00:${PC.toHexString(shortLengthFormat)} (${bus.readByte(PC + 0).toHexString(byteLengthFormat)} ${bus.readByte(PC + 1).toHexString(byteLengthFormat)} ${bus.readByte(PC + 2).toHexString(byteLengthFormat)} ${bus.readByte(PC + 3).toHexString(byteLengthFormat)})"
     }
 
 }
