@@ -66,10 +66,6 @@ class MainViewModel(
 
     val frame = MutableStateFlow(ImageBitmap(SCREEN_WIDTH, SCREEN_HEIGHT))
 
-    fun setColorTheme(colorTheme: ColorTheme) {
-        _colorTheme.value = colorTheme
-    }
-
     fun loadBios(rom: ByteArray) = emu.loadBios(rom)
 
     fun loadRom(rom: ByteArray) = emu.loadRom(rom)
