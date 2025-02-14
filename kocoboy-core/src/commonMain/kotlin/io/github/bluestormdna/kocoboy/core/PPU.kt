@@ -3,6 +3,7 @@ package io.github.bluestormdna.kocoboy.core
 import io.github.bluestormdna.kocoboy.host.Host
 import kotlin.experimental.and
 import kotlin.experimental.inv
+import kotlin.experimental.or
 
 class PPU(private val host: Host) {
 
@@ -53,6 +54,7 @@ class PPU(private val host: Host) {
             0x40 -> {
                 if (value == lcdc) return
                 lcdc = value
+                val wasEnabled = isBit(7, lcdc)
                 isEnabled = isBit(7, value)
 
                 if (!isEnabled) {
@@ -61,6 +63,11 @@ class PPU(private val host: Host) {
                     windowInternalLine = 0
                     stat = (stat and 0x3.toByte().inv())
                 }
+
+                if (!wasEnabled and isEnabled) {
+                    stat = stat or 2
+                }
+
                 handleCoincidenceFlag(bus)
             }
             0x41 -> stat = value
@@ -188,7 +195,7 @@ class PPU(private val host: Host) {
     }
 
     private fun renderBG(bus: Bus) {
-        val WX = ((wx.toInt() and 0xFF) - 7 and 0xFF) //WX needs -7 Offset
+        val WX = (wx.toInt() and 0xFF) - 7 //WX needs -7 Offset
         val WY = wy.toInt() and 0xFF
         val LY = ly.toInt() and 0xFF
         val SCY = scy.toInt() and 0xFF
