@@ -1,5 +1,6 @@
 package io.github.bluestormdna.kocoboy.ui.dmg
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -28,11 +29,13 @@ import androidx.compose.foundation.text.AutoSize
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -143,6 +146,8 @@ fun ScreenBezel(
     screen: @Composable BoxScope.() -> Unit = { },
     poweredOn: () -> Boolean = { false },
 ) {
+    val bezelColor by animateColorAsState(targetValue = KocoBoyTheme.colors.bezel)
+
     val ledColor = remember(poweredOn()) {
         if (poweredOn()) LedOn else LedOff
     }
@@ -152,7 +157,7 @@ fun ScreenBezel(
             .fillMaxSize()
             .border(BorderStroke(1.dp, KocoBoyTheme.colors.accentDark), FrameShape)
             .clip(FrameShape)
-            .background(KocoBoyTheme.colors.bezel)
+            .drawBehind { drawRect(bezelColor) }
             .wrapContentSize(align = Alignment.Center)
             .fillMaxSize(0.93f),
     ) {
@@ -181,7 +186,7 @@ fun ScreenBezel(
                 .wrapContentSize(BiasAlignment(0.35f, 0f))
                 .fillMaxHeight()
                 .fillMaxWidth(0.57f)
-                .background(KocoBoyTheme.colors.bezel)
+                .drawBehind { drawRect(bezelColor) }
                 .wrapContentSize()
                 .fillMaxHeight()
                 .fillMaxWidth(0.95f)
@@ -292,6 +297,8 @@ fun MainButtons(
     uiJoyPadEvent: (UiJoyPadEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val buttonColor by animateColorAsState(targetValue = KocoBoyTheme.colors.mainButtons)
+
     Column(
         modifier
             .rotate(-25f)
@@ -320,7 +327,7 @@ fun MainButtons(
                     .fillMaxWidth()
                     .fillMaxHeight()
                     .clip(CircleShape)
-                    .background(KocoBoyTheme.colors.mainButtons)
+                    .drawBehind { drawRect(buttonColor) }
                     .background(mainButtonShadow)
             )
             Spacer(modifier.weight(0.5f))
@@ -334,7 +341,7 @@ fun MainButtons(
                     .fillMaxWidth()
                     .fillMaxHeight()
                     .clip(CircleShape)
-                    .background(KocoBoyTheme.colors.mainButtons)
+                    .drawBehind { drawRect(buttonColor) }
                     .background(mainButtonShadow)
             )
         }
@@ -376,9 +383,10 @@ fun MainButtons(
 fun Triangle(
     modifier: Modifier = Modifier,
     orientation: Float = 0f,
-    color: Color = KocoBoyTheme.colors.body,
     shadowColor: Color = Color(0xFFA8A29F),
 ) {
+    val triangleColor by animateColorAsState(targetValue = KocoBoyTheme.colors.body)
+
     Canvas(
         modifier = modifier
             .aspectRatio(1f)
@@ -392,7 +400,7 @@ fun Triangle(
             close()
         }
         rotate(orientation) {
-            drawPath(trianglePath, color)
+            drawPath(trianglePath, triangleColor)
         }
     }
 }
@@ -581,6 +589,8 @@ fun RubberButton(
     text: String,
     modifier: Modifier,
 ) {
+    val buttonColor by animateColorAsState(KocoBoyTheme.colors.rubberButtons)
+
     Column(
         modifier = modifier
             .rotate(-26f)
@@ -607,7 +617,7 @@ fun RubberButton(
                     .fillMaxWidth(0.95f)
                     .fillMaxHeight(0.85f)
                     .clip(CircleShape)
-                    .background(KocoBoyTheme.colors.rubberButtons)
+                    .drawBehind { drawRect(buttonColor) }
                     .background(rubberShadow)
             )
         }
@@ -729,11 +739,13 @@ fun GameBoyLayout(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    val bodyColor by animateColorAsState(targetValue = KocoBoyTheme.colors.body)
+
     Layout(
         modifier = modifier
             .aspectRatio(90 / 148f)
             .clip(UnitShape)
-            .background(KocoBoyTheme.colors.body)
+            .drawBehind { drawRect(bodyColor) }
             .background(verticalBodyShadow)
             .background(horizontalBodyShadow),
         content = content,
