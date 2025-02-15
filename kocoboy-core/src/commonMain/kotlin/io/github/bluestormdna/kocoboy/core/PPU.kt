@@ -69,7 +69,10 @@ class PPU(private val host: Host) {
                     handleCoincidenceFlag(bus)
                 }
             }
-            0x41 -> stat = value
+            0x41 -> {
+                val readOnlyFlags = stat and 0x7
+                stat = value and 0x7.inv().toByte() or readOnlyFlags
+            }
             0x42 -> scy = value
             0x43 -> scx = value
             0x44 -> {
