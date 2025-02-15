@@ -66,9 +66,8 @@ class PPU(private val host: Host) {
 
                 if (!wasEnabled and isEnabled) {
                     stat = stat or 2
+                    handleCoincidenceFlag(bus)
                 }
-
-                handleCoincidenceFlag(bus)
             }
             0x41 -> stat = value
             0x42 -> scy = value
