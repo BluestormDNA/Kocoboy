@@ -118,7 +118,7 @@ class PPU(private val host: Host) {
         scanlineCounter += cycles
 
         when ((stat and 0x3).toInt()) {
-            Mode.OAM -> if (scanlineCounter >= OAM_CYCLES) {
+            Mode.OAM_MODE2 -> if (scanlineCounter >= OAM_CYCLES) {
                 scanlineCounter -= OAM_CYCLES
                 updateStatMode(3)
                 if (isBit(5, stat)) {
@@ -126,13 +126,13 @@ class PPU(private val host: Host) {
                 }
             }
 
-            Mode.VRAM -> if (scanlineCounter >= VRAM_CYCLES) {
+            Mode.VRAM_MODE3 -> if (scanlineCounter >= VRAM_CYCLES) {
                 scanlineCounter -= VRAM_CYCLES
                 updateStatMode(0)
                 drawScanLine(bus)
             }
 
-            Mode.HBLANK -> if (scanlineCounter >= HBLANK_CYCLES) {
+            Mode.HBLANK_MODE0 -> if (scanlineCounter >= HBLANK_CYCLES) {
                 scanlineCounter -= HBLANK_CYCLES
                 ly++
                 handleCoincidenceFlag(bus)
@@ -150,7 +150,7 @@ class PPU(private val host: Host) {
                 }
             }
 
-            Mode.VBLANK -> if (scanlineCounter >= SCANLINE_CYCLES) {
+            Mode.VBLANK_MODE1 -> if (scanlineCounter >= SCANLINE_CYCLES) {
                 scanlineCounter -= SCANLINE_CYCLES
                 ly++
                 handleCoincidenceFlag(bus)
@@ -399,10 +399,10 @@ class PPU(private val host: Host) {
         private const val LCD_INTERRUPT: Byte = 0x2
 
         object Mode {
-            const val HBLANK = 0
-            const val VBLANK = 1
-            const val OAM = 2
-            const val VRAM = 3
+            const val HBLANK_MODE0 = 0
+            const val VBLANK_MODE1 = 1
+            const val OAM_MODE2 = 2
+            const val VRAM_MODE3 = 3
         }
     }
 }
