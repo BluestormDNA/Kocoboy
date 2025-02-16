@@ -371,6 +371,9 @@ class PPU(private val host: Host) {
         windowInternalLine = 0
         frameBuffer.fill(color[0])
         host.render(frameBuffer)
+
+        scx = 0
+        scy = 0
     }
 
     companion object {
