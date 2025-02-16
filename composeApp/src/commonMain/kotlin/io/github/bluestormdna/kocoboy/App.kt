@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,7 +59,7 @@ fun App() {
 
     val colorTheme by vm.colorTheme.collectAsState()
     val frameBuffer by vm.frame.collectAsState()
-    val vps by vm.vps.collectAsState()
+    //val vps by vm.vps.collectAsState()
     val poweredOn by vm.poweredOn.collectAsState()
     val cartridgeHeader by vm.cartridgeHeader.collectAsState()
 
@@ -87,7 +86,7 @@ fun App() {
             Box(
                 Modifier.fillMaxSize().padding(contentPadding),
             ) {
-                Text(text = vps.toString())
+                //Text(text = vps.toString())
                 var showSettings by rememberSaveable { mutableStateOf(false) }
 
                 Row(
