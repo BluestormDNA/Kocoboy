@@ -89,8 +89,22 @@ Even thought they fixed things like shadow inconsistencies per platform, the And
 - Why are the previews of composables on androidMain instead of commonMain?  
 Because @Preview annotations on Android Studio only works there.
 
-- Why you did *insert random thing here* on this way? I can totally do it better!  
+- Why parts of the core code use unsigned while others use signed masking?
+Never been a fan of Kotlin approach to unsigned. When you add limited infix bitwise operators to the mix you end on quite messy code.  
+But then I learned that on KMP the inline classes actually get lowered to native primitives and even on the JVM/Android/R8 can produce better bytecode.(thanks [Kotlin Explorer](https://github.com/romainguy/kotlin-explorer)!)  
+By that time the CPU was already finished, so yeah... I should rewrite the masked part to unsigned even if some parts are experimental and the developer experience is not the best.
+
+- How is performance overall for an emulator?  
+At it's current iteration it can trigger around 2800vps, so around 46x the real device running on a phone while running uncapped. (tested on a Pixel 6).
+
+- Why sometimes it hiccups on audio or it goes below 60 when capped?
+Aparently I'm kinda bad at writting main loops (also delay may be not the best tool there as it behaves differently per platform...)
+
+- Why did you *insert random thing here* on that way? I can totally do it better!  
 Make a pull request!
+
+- But... I have questions!  
+Ask on the [Emudev Discord Server](https://discord.com/invite/dkmJAes)
 
 
 
