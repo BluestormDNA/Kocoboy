@@ -52,7 +52,7 @@ On the sidebar you can Load a rom, Power On/Off or select a theme.
 Click again the cog / settings icon to collapese the sidebar.  
  
 On platforms with touch input you can actually use the UI as an input.  
-On devices with keyboard input is mapped as:
+On platforms with keyboard input is mapped as:
 
 * D-Pad UP: **W**
 * D-Pad Left: **A**
@@ -76,34 +76,43 @@ This is nowhere a full list of issues just some of them from a high view perspec
 
 ## FAQ
 
-- Can i use this emulator to play?  
+- Can i use this emulator to play?
+
 Yes you can, but you shouldn't. There are a lot of other more capable emulators out there.  
 This is just a personal project to play with Kotlin Multiplatform / Compose Multiplatform
 
-- Why are you using Compose Multiplatform 1.8.0 alphas.  
+- Why are you using Compose Multiplatform 1.8.0 alphas.
+
 This is an experimental project, also TextAutoSize is only available there.
 
-- Why are you using Compose Multiplatform 1.8.0-alpha2 instead of alpha3?  
+- Why are you using Compose Multiplatform 1.8.0-alpha2 instead of alpha3?
+
 Even thought they fixed things like shadow inconsistencies per platform, the AndroidX dependencies are bumped to Compose 1.8.0-beta1 and that breaks TextAutoSize in animated custom layouts.
 
-- Why are the previews of composables on androidMain instead of commonMain?  
+- Why are the previews of composables on androidMain instead of commonMain?
+
 Because @Preview annotations on Android Studio only works there.
 
 - Why parts of the core code use unsigned while others use signed masking?
+
 Never been a fan of Kotlin approach to unsigned. When you add limited infix bitwise operators to the mix you end on quite messy code.  
-But then I learned that on KMP the inline classes actually get lowered to native primitives and even on the JVM/Android/R8 can produce better bytecode.(thanks [Kotlin Explorer](https://github.com/romainguy/kotlin-explorer)!)  
+But then I learned that on KMP the inline classes actually get lowered to native primitives and even on the JVM/Android/R8 can produce better bytecode. (thanks [Kotlin Explorer](https://github.com/romainguy/kotlin-explorer)!)  
 By that time the CPU was already finished, so yeah... I should rewrite the masked part to unsigned even if some parts are experimental and the developer experience is not the best.
 
-- How is performance overall for an emulator?  
+- How is performance overall for an emulator?
+
 At it's current iteration it can trigger around 2800vps, so around 46x the real device running on a phone while running uncapped. (tested on a Pixel 6).
 
 - Why sometimes it hiccups on audio or it goes below 60 when capped?
+
 Aparently I'm kinda bad at writting main loops (also delay may be not the best tool there as it behaves differently per platform...)
 
-- Why did you *insert random thing here* on that way? I can totally do it better!  
+- Why did you *insert random thing here* on that way? I can totally do it better!
+
 Make a pull request!
 
-- But... I have questions!  
+- But... I have questions!
+
 Ask on the [Emudev Discord Server](https://discord.com/invite/dkmJAes)
 
 
