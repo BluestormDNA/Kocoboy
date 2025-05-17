@@ -72,7 +72,6 @@ The project is splitted in 2 modules:
 This is nowhere a full list of issues just some of them from a high view perspective:
 * iOS lacks sound output (yet)
 * Main loop and audio sync have quite room for improvement.
-* There are little differences on TextAutoSize, shadows and UI in different platforms (Compose Multiplatform 1.8.0-alpha2 issues).
 
 ## FAQ
 
@@ -80,14 +79,6 @@ This is nowhere a full list of issues just some of them from a high view perspec
 
 Yes you can, but you shouldn't. There are a lot of other more capable emulators out there.  
 This is just a personal project to play with Kotlin Multiplatform / Compose Multiplatform
-
-- Why are you using Compose Multiplatform 1.8.0 alphas.
-
-This is an experimental project, also TextAutoSize is only available there.
-
-- Why are you using Compose Multiplatform 1.8.0-alpha2 instead of alpha3?
-
-Even thought they fixed things like shadow inconsistencies per platform, the AndroidX dependencies are bumped to Compose 1.8.0-beta1 and that breaks TextAutoSize in animated custom layouts.
 
 - Why are the previews of composables on androidMain instead of commonMain?
 
@@ -105,7 +96,7 @@ At it's current iteration it can trigger around 2800vps, so around 46x the real 
 
 - Why sometimes it hiccups on audio or it goes below 60 when capped?
 
-Aparently I'm kinda bad at writting main loops (also delay may be not the best tool there as it behaves differently per platform...)
+Apparently I'm kinda bad at writing main loops (also delay may be not the best tool there as it behaves differently per platform...)
 
 - Why did you *insert random thing here* on that way? I can totally do it better!
 

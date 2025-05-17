@@ -1,16 +1,17 @@
 [versions]
-agp = "8.8.1"
-android-compileSdk = "35"
+agp = "8.10.0"
+android-compileSdk = "36"
 android-minSdk = "26"
-android-targetSdk = "35"
-androidx-activityCompose = "1.10.0"
+android-targetSdk = "36"
+androidx-activityCompose = "1.10.1"
 androidx-lifecycle = "2.8.4"
-compose-multiplatform = "1.8.0-alpha02"
+compose-multiplatform = "1.8.0"
 filekitCompose = "0.8.8"
-kotlin = "2.1.10"
-kotlinx-coroutines = "1.10.1"
-kotlinxDatetime = "0.6.1"
-skiko = "0.8.25"
+kotlin = "2.1.21"
+kotlinx-coroutines = "1.10.2"
+kotlinxDatetime = "0.6.2"
+materialIconsCore = "1.7.3"
+skiko = "0.9.4"
 
 [libraries]
 filekit-compose = { module = "io.github.vinceglb:filekit-compose", version.ref = "filekitCompose" }
@@ -20,6 +21,7 @@ androidx-lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle
 kotlinx-coroutines-swing = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
+compose-material-icons-core = { module = "org.jetbrains.compose.material:material-icons-core", version.ref = "materialIconsCore" }
 skiko = { module = "org.jetbrains.skiko:skiko", version.ref = "skiko" }
 
 [plugins]

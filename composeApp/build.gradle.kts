@@ -33,7 +33,7 @@ kotlin {
     
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        moduleName = "composeApp"
+        outputModuleName.set("composeApp")
         browser {
             val rootDirPath = project.rootDir.path
             val projectDirPath = project.projectDir.path
@@ -71,6 +71,7 @@ kotlin {
             implementation(libs.filekit.compose)
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtime.compose)
+            implementation(libs.compose.material.icons.core)
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)

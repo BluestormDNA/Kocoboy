@@ -25,7 +25,7 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.AutoSize
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
@@ -125,7 +125,7 @@ fun PowerRow(
                         blurRadius = 2f,
                     )
                 ),
-                autoSize = AutoSize.StepBased(minFontSize = 2.sp, stepSize = 1.sp),
+                autoSize = TextAutoSize.StepBased(minFontSize = 2.sp, stepSize = 1.sp),
                 text = "◀OFF·ON▶",
             )
             Spacer(modifier.aspectRatio(1 / 8f))
@@ -198,7 +198,7 @@ fun ScreenBezel(
                 color = KocoBoyTheme.colors.bezelText,
                 textAlign = TextAlign.Center,
             ),
-            autoSize = AutoSize.StepBased(minFontSize = 2.sp)
+            autoSize = TextAutoSize.StepBased(minFontSize = 2.sp)
         )
         Box(
             modifier = Modifier
@@ -235,7 +235,7 @@ fun ScreenBezel(
                     lineHeightStyle = LineHeightStyle.Default,
                     color = KocoBoyTheme.colors.bezelText,
                 ),
-                autoSize = AutoSize.StepBased(minFontSize = 2.sp)
+                autoSize = TextAutoSize.StepBased(minFontSize = 2.sp)
             )
         }
     }
@@ -252,7 +252,7 @@ fun BrandLabelling(
                 .fillMaxHeight(0.42f),
             text = "Nintendo",
             style = TextStyle(fontFamily = Pretendo(), color = KocoBoyTheme.colors.bodyText),
-            autoSize = AutoSize.StepBased(minFontSize = 2.sp),
+            autoSize = TextAutoSize.StepBased(minFontSize = 2.sp),
         )
         Spacer(modifier.fillMaxWidth(0.02f))
         BasicText(
@@ -265,7 +265,7 @@ fun BrandLabelling(
                 fontStyle = FontStyle.Italic,
                 color = KocoBoyTheme.colors.bodyText
             ),
-            autoSize = AutoSize.StepBased(minFontSize = 2.sp),
+            autoSize = TextAutoSize.StepBased(minFontSize = 2.sp),
         )
         BasicText(
             modifier = modifier.alignByBaseline()
@@ -273,7 +273,7 @@ fun BrandLabelling(
                 .fillMaxHeight(0.15f),
             text = "TM",
             style = TextStyle(fontFamily = LatoRegular(), color = KocoBoyTheme.colors.bodyText),
-            autoSize = AutoSize.StepBased(minFontSize = 2.sp),
+            autoSize = TextAutoSize.StepBased(minFontSize = 2.sp),
         )
     }
 }
@@ -356,7 +356,7 @@ fun MainButtons(
                     fontFamily = NesController(),
                     lineHeightStyle = LineHeightStyle.Default,
                 ),
-                autoSize = AutoSize.StepBased(minFontSize = 2.sp, stepSize = 0.1.sp),
+                autoSize = TextAutoSize.StepBased(minFontSize = 2.sp, stepSize = 0.1.sp),
                 modifier = modifier.weight(1f)
                     .wrapContentSize()
                     .fillMaxWidth(0.17f)
@@ -369,7 +369,7 @@ fun MainButtons(
                     fontFamily = NesController(),
                     lineHeightStyle = LineHeightStyle.Default,
                 ),
-                autoSize = AutoSize.StepBased(minFontSize = 2.sp, stepSize = 0.1.sp),
+                autoSize = TextAutoSize.StepBased(minFontSize = 2.sp, stepSize = 0.1.sp),
                 modifier = modifier.weight(1f)
                     .wrapContentSize()
                     .fillMaxWidth(0.17f)
@@ -629,7 +629,7 @@ fun RubberButton(
                 fontFamily = NesController(),
                 lineHeightStyle = LineHeightStyle.Default,
             ),
-            autoSize = AutoSize.StepBased(minFontSize = 2.sp),
+            autoSize = TextAutoSize.StepBased(minFontSize = 2.sp),
             modifier = Modifier
                 .weight(0.35f)
                 .wrapContentSize(align = BiasAlignment(0f, -0.8f))
@@ -718,7 +718,7 @@ fun HeadPhoneJack(
                     blurRadius = 2f,
                 )
             ),
-            autoSize = AutoSize.StepBased(minFontSize = 2.sp),
+            autoSize = TextAutoSize.StepBased(minFontSize = 2.sp),
             text = "⠀PHONES⠀",
         )
     }
