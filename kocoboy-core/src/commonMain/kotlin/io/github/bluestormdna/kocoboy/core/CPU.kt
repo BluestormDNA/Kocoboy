@@ -4,10 +4,7 @@ package io.github.bluestormdna.kocoboy.core
 @OptIn(ExperimentalStdlibApi::class)
 class CPU(private val bus: Bus) {
 
-    private var A: Int = 0
-        set(value) {
-            field = value and 0xFF
-        }
+    private var A: UByte = 0u
 
     private var F: UByte = 0u
 
@@ -53,7 +50,7 @@ class CPU(private val bus: Bus) {
     private var AF: UShort
         get() = (A.toUInt() shl 8 or F.toUInt()).toUShort()
         set(value) {
-            A = (value.toUInt() shr 8).toInt()
+            A = (value.toUInt() shr 8).toUByte()
             F = (value and 0xF0u).toUByte()
         }
 
@@ -111,8 +108,8 @@ class CPU(private val bus: Bus) {
 
     private var cycles = 0
 
-    private inline fun fetch(): Int {
-        return bus.readByte(PC++).toInt() // TODO NEXT
+    private inline fun fetch(): UByte {
+        return bus.readByte(PC++)
     }
 
     private var debug = false
@@ -125,16 +122,16 @@ class CPU(private val bus: Bus) {
 
         cycles = 0
 
-        val opcode = fetch()
+        val opcode = fetch().toInt()
 
         when (opcode) {
             0x00 -> Unit
             0x01 -> BC = fetchWord()
-            0x02 -> bus.writeByte(BC, A.toUByte())
+            0x02 -> bus.writeByte(BC, A)
             0x03 -> BC++
             0x04 -> B = incReg8(B)
             0x05 -> B = decReg8(B)
-            0x06 -> B = fetch().toUByte()
+            0x06 -> B = fetch()
             0x07 -> rlca()
 
             0x08 -> {
@@ -144,64 +141,64 @@ class CPU(private val bus: Bus) {
             }
 
             0x09 -> dad(BC)
-            0x0A -> A = bus.readByte(BC).toInt()
+            0x0A -> A = bus.readByte(BC)
             0x0B -> BC--
             0x0C -> C = incReg8(C)
             0x0D -> C = decReg8(C)
-            0x0E -> C = fetch().toUByte()
+            0x0E -> C = fetch()
             0x0F -> rrca()
 
             0x10 -> stop()
             0x11 -> DE = fetchWord()
-            0x12 -> bus.writeByte(DE, A.toUByte())
+            0x12 -> bus.writeByte(DE, A)
             0x13 -> DE++
             0x14 -> D = incReg8(D)
             0x15 -> D = decReg8(D)
-            0x16 -> D = fetch().toUByte()
+            0x16 -> D = fetch()
             0x17 -> rla()
 
             0x18 -> jr(true)
             0x19 -> dad(DE)
-            0x1A -> A = bus.readByte(DE).toInt()
+            0x1A -> A = bus.readByte(DE)
             0x1B -> DE--
             0x1C -> E = incReg8(E)
             0x1D -> E = decReg8(E)
-            0x1E -> E = fetch().toUByte()
+            0x1E -> E = fetch()
             0x1F -> rra()
 
             0x20 -> jr(!flagZ)
             0x21 -> HL = fetchWord()
-            0x22 -> bus.writeByte(HL++, A.toUByte())
+            0x22 -> bus.writeByte(HL++, A)
             0x23 -> HL++
             0x24 -> H = incReg8(H)
             0x25 -> H = decReg8(H)
-            0x26 -> H = fetch().toUByte()
+            0x26 -> H = fetch()
             0x27 -> daa()
 
             0x28 -> jr(flagZ)
             0x29 -> dad(HL)
-            0x2A -> A = bus.readByte((HL++)).toInt()
+            0x2A -> A = bus.readByte((HL++))
             0x2B -> HL--
             0x2C -> L = incReg8(L)
             0x2D -> L = decReg8(L)
-            0x2E -> L = fetch().toUByte()
+            0x2E -> L = fetch()
             0x2F -> cpl()
 
             0x30 -> jr(!flagC)
             0x31 -> SP = fetchWord()
-            0x32 -> bus.writeByte(HL--, A.toUByte())
+            0x32 -> bus.writeByte(HL--, A)
             0x33 -> SP++
             0x34 -> M = incReg8(M)
             0x35 -> M = decReg8(M)
-            0x36 -> M = fetch().toUByte()
+            0x36 -> M = fetch()
             0x37 -> scf()
 
             0x38 -> jr(flagC)
             0x39 -> dad(SP)
-            0x3A -> A = bus.readByte(HL--).toInt()
+            0x3A -> A = bus.readByte(HL--)
             0x3B -> SP--
-            0x3C -> A = incReg8(A.toUByte()).toInt()
-            0x3D -> A = decReg8(A.toUByte()).toInt()
+            0x3C -> A = incReg8(A)
+            0x3D -> A = decReg8(A)
             0x3E -> A = fetch()
             0x3F -> ccf()
 
@@ -212,7 +209,7 @@ class CPU(private val bus: Bus) {
             0x44 -> B = H
             0x45 -> B = L
             0x46 -> B = M
-            0x47 -> B = A.toUByte()
+            0x47 -> B = A
 
             0x48 -> C = B
             0x49 -> Unit
@@ -221,7 +218,7 @@ class CPU(private val bus: Bus) {
             0x4C -> C = H
             0x4D -> C = L
             0x4E -> C = M
-            0x4F -> C = A.toUByte()
+            0x4F -> C = A
 
             0x50 -> D = B
             0x51 -> D = C
@@ -230,7 +227,7 @@ class CPU(private val bus: Bus) {
             0x54 -> D = H
             0x55 -> D = L
             0x56 -> D = M
-            0x57 -> D = A.toUByte()
+            0x57 -> D = A
 
             0x58 -> E = B
             0x59 -> E = C
@@ -239,7 +236,7 @@ class CPU(private val bus: Bus) {
             0x5C -> E = H
             0x5D -> E = L
             0x5E -> E = M
-            0x5F -> E = A.toUByte()
+            0x5F -> E = A
 
             0x60 -> H = B
             0x61 -> H = C
@@ -248,7 +245,7 @@ class CPU(private val bus: Bus) {
             0x64 -> Unit
             0x65 -> H = L
             0x66 -> H = M
-            0x67 -> H = A.toUByte()
+            0x67 -> H = A
 
             0x68 -> L = B
             0x69 -> L = C
@@ -257,7 +254,7 @@ class CPU(private val bus: Bus) {
             0x6C -> L = H
             0x6D -> Unit
             0x6E -> L = M
-            0x6F -> L = A.toUByte()
+            0x6F -> L = A
 
             0x70 -> M = B
             0x71 -> M = C
@@ -266,15 +263,15 @@ class CPU(private val bus: Bus) {
             0x74 -> M = H
             0x75 -> M = L
             0x76 -> halt()
-            0x77 -> M = A.toUByte()
+            0x77 -> M = A
 
-            0x78 -> A = B.toInt()
-            0x79 -> A = C.toInt()
-            0x7A -> A = D.toInt()
-            0x7B -> A = E.toInt()
-            0x7C -> A = H.toInt()
-            0x7D -> A = L.toInt()
-            0x7E -> A = M.toInt()
+            0x78 -> A = B
+            0x79 -> A = C
+            0x7A -> A = D
+            0x7B -> A = E
+            0x7C -> A = H
+            0x7D -> A = L
+            0x7E -> A = M
             0x7F -> Unit
 
             0x80 -> add(B)
@@ -284,7 +281,7 @@ class CPU(private val bus: Bus) {
             0x84 -> add(H)
             0x85 -> add(L)
             0x86 -> add(M)
-            0x87 -> add(A.toUByte())
+            0x87 -> add(A)
 
             0x88 -> adc(B)
             0x89 -> adc(C)
@@ -293,7 +290,7 @@ class CPU(private val bus: Bus) {
             0x8C -> adc(H)
             0x8D -> adc(L)
             0x8E -> adc(M)
-            0x8F -> adc(A.toUByte())
+            0x8F -> adc(A)
 
             0x90 -> sub(B)
             0x91 -> sub(C)
@@ -302,7 +299,7 @@ class CPU(private val bus: Bus) {
             0x94 -> sub(H)
             0x95 -> sub(L)
             0x96 -> sub(M)
-            0x97 -> sub(A.toUByte())
+            0x97 -> sub(A)
 
             0x98 -> sbc(B)
             0x99 -> sbc(C)
@@ -311,7 +308,7 @@ class CPU(private val bus: Bus) {
             0x9C -> sbc(H)
             0x9D -> sbc(L)
             0x9E -> sbc(M)
-            0x9F -> sbc(A.toUByte())
+            0x9F -> sbc(A)
 
             0xA0 -> and(B)
             0xA1 -> and(C)
@@ -320,7 +317,7 @@ class CPU(private val bus: Bus) {
             0xA4 -> and(H)
             0xA5 -> and(L)
             0xA6 -> and(M)
-            0xA7 -> and(A.toUByte())
+            0xA7 -> and(A)
 
             0xA8 -> xor(B)
             0xA9 -> xor(C)
@@ -329,7 +326,7 @@ class CPU(private val bus: Bus) {
             0xAC -> xor(H)
             0xAD -> xor(L)
             0xAE -> xor(M)
-            0xAF -> xor(A.toUByte())
+            0xAF -> xor(A)
 
             0xB0 -> or(B)
             0xB1 -> or(C)
@@ -338,7 +335,7 @@ class CPU(private val bus: Bus) {
             0xB4 -> or(H)
             0xB5 -> or(L)
             0xB6 -> or(M)
-            0xB7 -> or(A.toUByte())
+            0xB7 -> or(A)
 
             0xB8 -> cp(B)
             0xB9 -> cp(C)
@@ -347,7 +344,7 @@ class CPU(private val bus: Bus) {
             0xBC -> cp(H)
             0xBD -> cp(L)
             0xBE -> cp(M)
-            0xBF -> cp(A.toUByte())
+            0xBF -> cp(A)
 
             0xC0 -> ret(!flagZ)
             0xC1 -> BC = pop()
@@ -355,7 +352,7 @@ class CPU(private val bus: Bus) {
             0xC3 -> jp(true) // PC = imm16
             0xC4 -> call(!flagZ)
             0xC5 -> push(BC)
-            0xC6 -> add(fetch().toUByte())
+            0xC6 -> add(fetch())
             0xC7 -> rst(0x0)
 
             0xC8 -> ret(flagZ)
@@ -364,7 +361,7 @@ class CPU(private val bus: Bus) {
             0xCB -> prefixCB()
             0xCC -> call(flagZ)
             0xCD -> call(true)
-            0xCE -> adc(fetch().toUByte())
+            0xCE -> adc(fetch())
             0xCF -> rst(0x8)
 
             0xD0 -> ret(!flagC)
@@ -373,7 +370,7 @@ class CPU(private val bus: Bus) {
             0xD3 -> Unit
             0xD4 -> call(!flagC)
             0xD5 -> push(DE)
-            0xD6 -> sub(fetch().toUByte())
+            0xD6 -> sub(fetch())
             0xD7 -> rst(0x10)
 
             0xD8 -> ret(flagC)
@@ -386,43 +383,43 @@ class CPU(private val bus: Bus) {
             0xDB -> Unit
             0xDC -> call(flagC)
             0xDD -> Unit
-            0xDE -> sbc(fetch().toUByte())
+            0xDE -> sbc(fetch())
             0xDF -> rst(0x18)
 
-            0xE0 -> bus.writeByte((0xFF00 + fetch()).toUShort(), A.toUByte())
+            0xE0 -> bus.writeByte((0xFF00u + fetch()).toUShort(), A)
             0xE1 -> HL = pop()
-            0xE2 -> bus.writeByte((0xFF00u + C).toUShort(), A.toUByte())
+            0xE2 -> bus.writeByte((0xFF00u + C).toUShort(), A)
             0xE3 -> Unit
             0xE4 -> Unit
             0xE5 -> push(HL)
-            0xE6 -> and(fetch().toUByte())
+            0xE6 -> and(fetch())
             0xE7 -> rst(0x20)
 
-            0xE8 -> SP = addSigned8(SP, fetch().toUByte())
+            0xE8 -> SP = addSigned8(SP, fetch())
             0xE9 -> PC = HL // Direct Jump
-            0xEA -> bus.writeByte(fetchWord(), A.toUByte())
+            0xEA -> bus.writeByte(fetchWord(), A)
             0xEB -> Unit
             0xEC -> Unit
             0xED -> Unit
-            0xEE -> xor(fetch().toUByte())
+            0xEE -> xor(fetch())
             0xEF -> rst(0x28)
 
-            0xF0 -> A = bus.readByte((0xFF00 + fetch()).toUShort()).toInt()
+            0xF0 -> A = bus.readByte((0xFF00u + fetch()).toUShort())
             0xF1 -> AF = pop()
-            0xF2 -> A = bus.readByte((0xFF00u + C).toUShort()).toInt()
+            0xF2 -> A = bus.readByte((0xFF00u + C).toUShort())
             0xF3 -> di()
             0xF4 -> Unit
             0xF5 -> push(AF)
-            0xF6 -> or(fetch().toUByte())
+            0xF6 -> or(fetch())
             0xF7 -> rst(0x30)
 
-            0xF8 -> HL = addSigned8(SP, fetch().toUByte())
+            0xF8 -> HL = addSigned8(SP, fetch())
             0xF9 -> SP = HL
-            0xFA -> A = bus.readByte(fetchWord()).toInt()
+            0xFA -> A = bus.readByte(fetchWord())
             0xFB -> ei()
             0xFC -> Unit
             0xFD -> Unit
-            0xFE -> cp(fetch().toUByte())
+            0xFE -> cp(fetch())
             0xFF -> rst(0x38)
         }
 
@@ -431,7 +428,7 @@ class CPU(private val bus: Bus) {
     }
 
     private fun prefixCB() {
-        val opcode = fetch()
+        val opcode = fetch().toInt()
 
         when (opcode) {
             0x00 -> B = rlc(B.toInt()).toUByte()
@@ -441,7 +438,7 @@ class CPU(private val bus: Bus) {
             0x04 -> H = rlc(H.toInt()).toUByte()
             0x05 -> L = rlc(L.toInt()).toUByte()
             0x06 -> M = rlc(M.toInt()).toUByte()
-            0x07 -> A = rlc(A)
+            0x07 -> A = rlc(A.toInt()).toUByte()
 
             0x08 -> B = rrc(B.toInt()).toUByte()
             0x09 -> C = rrc(C.toInt()).toUByte()
@@ -450,7 +447,7 @@ class CPU(private val bus: Bus) {
             0x0C -> H = rrc(H.toInt()).toUByte()
             0x0D -> L = rrc(L.toInt()).toUByte()
             0x0E -> M = rrc(M.toInt()).toUByte()
-            0x0F -> A = rrc(A)
+            0x0F -> A = rrc(A.toInt()).toUByte()
 
             0x10 -> B = rl(B.toInt()).toUByte()
             0x11 -> C = rl(C.toInt()).toUByte()
@@ -459,7 +456,7 @@ class CPU(private val bus: Bus) {
             0x14 -> H = rl(H.toInt()).toUByte()
             0x15 -> L = rl(L.toInt()).toUByte()
             0x16 -> M = rl(M.toInt()).toUByte()
-            0x17 -> A = rl(A)
+            0x17 -> A = rl(A.toInt()).toUByte()
 
             0x18 -> B = rr(B.toInt()).toUByte()
             0x19 -> C = rr(C.toInt()).toUByte()
@@ -468,7 +465,7 @@ class CPU(private val bus: Bus) {
             0x1C -> H = rr(H.toInt()).toUByte()
             0x1D -> L = rr(L.toInt()).toUByte()
             0x1E -> M = rr(M.toInt()).toUByte()
-            0x1F -> A = rr(A)
+            0x1F -> A = rr(A.toInt()).toUByte()
 
             0x20 -> B = sla(B.toInt()).toUByte()
             0x21 -> C = sla(C.toInt()).toUByte()
@@ -477,7 +474,7 @@ class CPU(private val bus: Bus) {
             0x24 -> H = sla(H.toInt()).toUByte()
             0x25 -> L = sla(L.toInt()).toUByte()
             0x26 -> M = sla(M.toInt()).toUByte()
-            0x27 -> A = sla(A)
+            0x27 -> A = sla(A.toInt()).toUByte()
 
             0x28 -> B = sra(B.toInt()).toUByte()
             0x29 -> C = sra(C.toInt()).toUByte()
@@ -486,7 +483,7 @@ class CPU(private val bus: Bus) {
             0x2C -> H = sra(H.toInt()).toUByte()
             0x2D -> L = sra(L.toInt()).toUByte()
             0x2E -> M = sra(M.toInt()).toUByte()
-            0x2F -> A = sra(A)
+            0x2F -> A = sra(A.toInt()).toUByte()
 
             0x30 -> B = swap(B.toInt()).toUByte()
             0x31 -> C = swap(C.toInt()).toUByte()
@@ -495,7 +492,7 @@ class CPU(private val bus: Bus) {
             0x34 -> H = swap(H.toInt()).toUByte()
             0x35 -> L = swap(L.toInt()).toUByte()
             0x36 -> M = swap(M.toInt()).toUByte()
-            0x37 -> A = swap(A)
+            0x37 -> A = swap(A.toInt()).toUByte()
 
             0x38 -> B = srl(B.toInt()).toUByte()
             0x39 -> C = srl(C.toInt()).toUByte()
@@ -504,7 +501,7 @@ class CPU(private val bus: Bus) {
             0x3C -> H = srl(H.toInt()).toUByte()
             0x3D -> L = srl(L.toInt()).toUByte()
             0x3E -> M = srl(M.toInt()).toUByte()
-            0x3F -> A = srl(A)
+            0x3F -> A = srl(A.toInt()).toUByte()
 
             0x40 -> bit(0x1, B)
             0x41 -> bit(0x1, C)
@@ -513,7 +510,7 @@ class CPU(private val bus: Bus) {
             0x44 -> bit(0x1, H)
             0x45 -> bit(0x1, L)
             0x46 -> bit(0x1, M)
-            0x47 -> bit(0x1, A.toUByte())
+            0x47 -> bit(0x1, A)
 
             0x48 -> bit(0x2, B)
             0x49 -> bit(0x2, C)
@@ -522,7 +519,7 @@ class CPU(private val bus: Bus) {
             0x4C -> bit(0x2, H)
             0x4D -> bit(0x2, L)
             0x4E -> bit(0x2, M)
-            0x4F -> bit(0x2, A.toUByte())
+            0x4F -> bit(0x2, A)
 
             0x50 -> bit(0x4, B)
             0x51 -> bit(0x4, C)
@@ -531,7 +528,7 @@ class CPU(private val bus: Bus) {
             0x54 -> bit(0x4, H)
             0x55 -> bit(0x4, L)
             0x56 -> bit(0x4, M)
-            0x57 -> bit(0x4, A.toUByte())
+            0x57 -> bit(0x4, A)
 
             0x58 -> bit(0x8, B)
             0x59 -> bit(0x8, C)
@@ -540,7 +537,7 @@ class CPU(private val bus: Bus) {
             0x5C -> bit(0x8, H)
             0x5D -> bit(0x8, L)
             0x5E -> bit(0x8, M)
-            0x5F -> bit(0x8, A.toUByte())
+            0x5F -> bit(0x8, A)
 
             0x60 -> bit(0x10, B)
             0x61 -> bit(0x10, C)
@@ -549,7 +546,7 @@ class CPU(private val bus: Bus) {
             0x64 -> bit(0x10, H)
             0x65 -> bit(0x10, L)
             0x66 -> bit(0x10, M)
-            0x67 -> bit(0x10, A.toUByte())
+            0x67 -> bit(0x10, A)
 
             0x68 -> bit(0x20, B)
             0x69 -> bit(0x20, C)
@@ -558,7 +555,7 @@ class CPU(private val bus: Bus) {
             0x6C -> bit(0x20, H)
             0x6D -> bit(0x20, L)
             0x6E -> bit(0x20, M)
-            0x6F -> bit(0x20, A.toUByte())
+            0x6F -> bit(0x20, A)
 
             0x70 -> bit(0x40, B)
             0x71 -> bit(0x40, C)
@@ -567,7 +564,7 @@ class CPU(private val bus: Bus) {
             0x74 -> bit(0x40, H)
             0x75 -> bit(0x40, L)
             0x76 -> bit(0x40, M)
-            0x77 -> bit(0x40, A.toUByte())
+            0x77 -> bit(0x40, A)
 
             0x78 -> bit(0x80, B)
             0x79 -> bit(0x80, C)
@@ -576,7 +573,7 @@ class CPU(private val bus: Bus) {
             0x7C -> bit(0x80, H)
             0x7D -> bit(0x80, L)
             0x7E -> bit(0x80, M)
-            0x7F -> bit(0x80, A.toUByte())
+            0x7F -> bit(0x80, A)
 
             0x80 -> B = res(0x1, B)
             0x81 -> C = res(0x1, C)
@@ -585,7 +582,7 @@ class CPU(private val bus: Bus) {
             0x84 -> H = res(0x1, H)
             0x85 -> L = res(0x1, L)
             0x86 -> M = res(0x1, M)
-            0x87 -> A = res(0x1, A.toUByte()).toInt()
+            0x87 -> A = res(0x1, A)
 
             0x88 -> B = res(0x2, B)
             0x89 -> C = res(0x2, C)
@@ -594,7 +591,7 @@ class CPU(private val bus: Bus) {
             0x8C -> H = res(0x2, H)
             0x8D -> L = res(0x2, L)
             0x8E -> M = res(0x2, M)
-            0x8F -> A = res(0x2, A.toUByte()).toInt()
+            0x8F -> A = res(0x2, A)
 
             0x90 -> B = res(0x4, B)
             0x91 -> C = res(0x4, C)
@@ -603,7 +600,7 @@ class CPU(private val bus: Bus) {
             0x94 -> H = res(0x4, H)
             0x95 -> L = res(0x4, L)
             0x96 -> M = res(0x4, M)
-            0x97 -> A = res(0x4, A.toUByte()).toInt()
+            0x97 -> A = res(0x4, A)
 
             0x98 -> B = res(0x8, B)
             0x99 -> C = res(0x8, C)
@@ -612,7 +609,7 @@ class CPU(private val bus: Bus) {
             0x9C -> H = res(0x8, H)
             0x9D -> L = res(0x8, L)
             0x9E -> M = res(0x8, M)
-            0x9F -> A = res(0x8, A.toUByte()).toInt()
+            0x9F -> A = res(0x8, A)
 
             0xA0 -> B = res(0x10, B)
             0xA1 -> C = res(0x10, C)
@@ -621,7 +618,7 @@ class CPU(private val bus: Bus) {
             0xA4 -> H = res(0x10, H)
             0xA5 -> L = res(0x10, L)
             0xA6 -> M = res(0x10, M)
-            0xA7 -> A = res(0x10, A.toUByte()).toInt()
+            0xA7 -> A = res(0x10, A)
 
             0xA8 -> B = res(0x20, B)
             0xA9 -> C = res(0x20, C)
@@ -630,7 +627,7 @@ class CPU(private val bus: Bus) {
             0xAC -> H = res(0x20, H)
             0xAD -> L = res(0x20, L)
             0xAE -> M = res(0x20, M)
-            0xAF -> A = res(0x20, A.toUByte()).toInt()
+            0xAF -> A = res(0x20, A)
 
             0xB0 -> B = res(0x40, B)
             0xB1 -> C = res(0x40, C)
@@ -639,7 +636,7 @@ class CPU(private val bus: Bus) {
             0xB4 -> H = res(0x40, H)
             0xB5 -> L = res(0x40, L)
             0xB6 -> M = res(0x40, M)
-            0xB7 -> A = res(0x40, A.toUByte()).toInt()
+            0xB7 -> A = res(0x40, A)
 
             0xB8 -> B = res(0x80, B)
             0xB9 -> C = res(0x80, C)
@@ -648,7 +645,7 @@ class CPU(private val bus: Bus) {
             0xBC -> H = res(0x80, H)
             0xBD -> L = res(0x80, L)
             0xBE -> M = res(0x80, M)
-            0xBF -> A = res(0x80, A.toUByte()).toInt()
+            0xBF -> A = res(0x80, A)
 
             0xC0 -> B = set(0x1, B)
             0xC1 -> C = set(0x1, C)
@@ -657,7 +654,7 @@ class CPU(private val bus: Bus) {
             0xC4 -> H = set(0x1, H)
             0xC5 -> L = set(0x1, L)
             0xC6 -> M = set(0x1, M)
-            0xC7 -> A = set(0x1, A.toUByte()).toInt()
+            0xC7 -> A = set(0x1, A)
 
             0xC8 -> B = set(0x2, B)
             0xC9 -> C = set(0x2, C)
@@ -666,7 +663,7 @@ class CPU(private val bus: Bus) {
             0xCC -> H = set(0x2, H)
             0xCD -> L = set(0x2, L)
             0xCE -> M = set(0x2, M)
-            0xCF -> A = set(0x2, A.toUByte()).toInt()
+            0xCF -> A = set(0x2, A)
 
             0xD0 -> B = set(0x4, B)
             0xD1 -> C = set(0x4, C)
@@ -675,7 +672,7 @@ class CPU(private val bus: Bus) {
             0xD4 -> H = set(0x4, H)
             0xD5 -> L = set(0x4, L)
             0xD6 -> M = set(0x4, M)
-            0xD7 -> A = set(0x4, A.toUByte()).toInt()
+            0xD7 -> A = set(0x4, A)
 
             0xD8 -> B = set(0x8, B)
             0xD9 -> C = set(0x8, C)
@@ -684,7 +681,7 @@ class CPU(private val bus: Bus) {
             0xDC -> H = set(0x8, H)
             0xDD -> L = set(0x8, L)
             0xDE -> M = set(0x8, M)
-            0xDF -> A = set(0x8, A.toUByte()).toInt()
+            0xDF -> A = set(0x8, A)
 
             0xE0 -> B = set(0x10, B)
             0xE1 -> C = set(0x10, C)
@@ -693,7 +690,7 @@ class CPU(private val bus: Bus) {
             0xE4 -> H = set(0x10, H)
             0xE5 -> L = set(0x10, L)
             0xE6 -> M = set(0x10, M)
-            0xE7 -> A = set(0x10, A.toUByte()).toInt()
+            0xE7 -> A = set(0x10, A)
 
             0xE8 -> B = set(0x20, B)
             0xE9 -> C = set(0x20, C)
@@ -702,7 +699,7 @@ class CPU(private val bus: Bus) {
             0xEC -> H = set(0x20, H)
             0xED -> L = set(0x20, L)
             0xEE -> M = set(0x20, M)
-            0xEF -> A = set(0x20, A.toUByte()).toInt()
+            0xEF -> A = set(0x20, A)
 
             0xF0 -> B = set(0x40, B)
             0xF1 -> C = set(0x40, C)
@@ -711,7 +708,7 @@ class CPU(private val bus: Bus) {
             0xF4 -> H = set(0x40, H)
             0xF5 -> L = set(0x40, L)
             0xF6 -> M = set(0x40, M)
-            0xF7 -> A = set(0x40, A.toUByte()).toInt()
+            0xF7 -> A = set(0x40, A)
 
             0xF8 -> B = set(0x80, B)
             0xF9 -> C = set(0x80, C)
@@ -720,7 +717,7 @@ class CPU(private val bus: Bus) {
             0xFC -> H = set(0x80, H)
             0xFD -> L = set(0x80, L)
             0xFE -> M = set(0x80, M)
-            0xFF -> A = set(0x80, A.toUByte()).toInt()
+            0xFF -> A = set(0x80, A)
         }
 
         cycles += CpuCycles.opcodeCBCycles[opcode]
@@ -780,21 +777,21 @@ class CPU(private val bus: Bus) {
     private fun daa() {
         if (flagN) { // sub
             if (flagC) {
-                A -= 0x60
+                A = (A - 0x60u).toUByte()
             }
             if (flagH) {
-                A -= 0x6
+                A = (A - 0x6u).toUByte()
             }
         } else { // add
-            if (flagC || (A > 0x99)) {
-                A += 0x60
+            if (flagC || (A > 0x99u)) {
+                A = (A + 0x60u).toUByte()
                 flagC = true
             }
-            if (flagH || (A and 0xF) > 0x9) {
-                A += 0x6
+            if (flagH || (A and 0xFu) > 0x9u) {
+                A = (A + 0x6u).toUByte()
             }
         }
-        flagZ = A == 0
+        flagZ = A == zero
         flagH = false
     }
 
@@ -836,27 +833,27 @@ class CPU(private val bus: Bus) {
     private fun rra() {
         val prevC = flagC
         F = 0u
-        flagC = A and 0x01 != 0
-        A = (A shr 1) or (if (prevC) 0x80 else 0)
+        flagC = A and 0x01u != zero
+        A = (A shr 1.toUByte()) or (if (prevC) 0x80u else 0u)
     }
 
     private fun rla() {
         val prevC = flagC
         F = 0u
-        flagC = A and 0x80 != 0
-        A = (A shl 1) or (if (prevC) 1 else 0)
+        flagC = A and 0x80u != zero
+        A = (A shl 0x1) or (if (prevC) 0x1u else 0u)
     }
 
     private fun rrca() {
         F = 0u
-        flagC = A and 0x01 != 0
-        A = (A shr 1) or (A shl 7) and 0xFF
+        flagC = A and 0x01u != zero
+        A = (A shr 0x1) or (A shl 7)
     }
 
     private fun rlca() {
         F = 0u
-        flagC = A and 0x80 != 0
-        A = (A shl 1) or (A shr 7) and 0xFF
+        flagC = A and 0x80u != zero
+        A = (A shl 1) or (A shr 7)
     }
 
     private fun jr(flag: Boolean) {
@@ -904,73 +901,73 @@ class CPU(private val bus: Bus) {
     }
 
     private fun add(value: UByte) {
-        val result = A.toUByte() + value
+        val result = A + value
         F = 0u
         flagZ = result and 0xFFu == 0u
         //flagN = false
         flagH = ((A.toUInt() and 0xFu) + (value and 0xFu)) > 0xFu
         flagC = result shr 8 and 0xFFu != 0u
-        A = result.toInt()
+        A = result.toUByte()
     }
 
     private fun adc(value: UByte) {
         val carry = if (flagC) 1u else 0u
-        val result = A.toUByte() + value + carry
+        val result = A + value + carry
         F = 0u
         flagZ = result and 0xFFu == 0u
         //flagN = false
         flagH = ((A.toUInt() and 0xFu) + (value and 0xFu) + carry) > 0xFu
         flagC = result shr 8 and 0xFFu != 0u
-        A = result.toInt()
+        A = result.toUByte()
     }
 
     private fun sub(value: UByte) {
-        val result = A.toUByte() - value
+        val result = A - value
         flagZ = result and 0xFFu == 0u
         flagN = true
-        flagH = (A.toUByte() and 0xFu) < (value and 0xFu)
+        flagH = (A and 0xFu) < (value and 0xFu)
         flagC = result shr 8 and 0xFFu != 0u
-        A = result.toInt()
+        A = result.toUByte()
     }
 
     private fun sbc(value: UByte) {
         val carry = if (flagC) 1u else 0u
-        val result = A.toUByte() - value - carry
+        val result = A - value - carry
         flagZ = result and 0xFFu == 0u
         flagN = true
-        flagH = (A.toUByte() and 0xFu) < (value and 0xFu) + carry
+        flagH = (A and 0xFu) < (value and 0xFu) + carry
         flagC = result shr 8 and 0xFFu != 0u
-        A = result.toInt()
+        A = result.toUByte()
     }
 
     private fun and(value: UByte) {
-        val result = A.toUByte() and value
+        val result = A and value
         F = 0u
         flagZ = result and 0xFFu == zero
         //flagN = false
         flagH = true
         //flagC = false
-        A = result.toInt()
+        A = result
     }
 
     private fun xor(value: UByte) {
-        val result = A.toUByte() xor value
+        val result = A xor value
         F = 0u
         flagZ = result == zero
         //flagN = false
         //flagH = false
         //flagC = false
-        A = result.toInt()
+        A = result
     }
 
     private fun or(value: UByte) {
-        val result = A.toUByte() or value
+        val result = A or value
         F = 0u
         flagZ = result == zero
         //flagN = false
         //flagH = false
         //flagC = false
-        A = result.toInt()
+        A = result
     }
 
     private fun cp(value: UByte) {

@@ -17,3 +17,11 @@ inline fun isBit(n: Int, v: Byte): Boolean {
     // (v >> n) & 1 == 1;
     return ((v.toInt() shr n) and 1) == 1
 }
+
+inline infix fun UByte.shr(value: Int): UByte = this.toUInt().shr(value).toUByte()
+
+inline infix fun UByte.shr(value: UByte): UByte = this.toUInt().shr(value.toInt()).toUByte()
+
+inline infix fun UByte.shl(value: Int): UByte = this.toUInt().shl(value).toUByte()
+
+inline infix fun UByte.shl(value: UByte): UByte = this.toUInt().shl(value.toInt()).toUByte()
