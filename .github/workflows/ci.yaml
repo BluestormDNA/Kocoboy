@@ -7,17 +7,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-  steps:
-    - uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+      - uses: actions/checkout@v4
 
-    - name: Setup JDK
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '21'
-        cache: gradle
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: gradle
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4
-    - name: Build Android App
-      run: ./gradlew assemble
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Android App
+        run: ./gradlew assemble
