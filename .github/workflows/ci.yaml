@@ -31,7 +31,7 @@ jobs:
           path: composeApp/build/outputs/apk/release/composeApp-release.apk
           if-no-files-found: error
 
-  build_desktop_and_wasm:
+  build_desktop:
     name: Build on ${{ matrix.os }}
     strategy:
       matrix:
@@ -52,22 +52,21 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build Desktop Package and WasmJS
-        run: ./gradlew :composeApp:packageDistributionForCurrentOS :composeApp:wasmJsBrowserDistribution
+      - name: Build Desktop Package
+        run: ./gradlew :composeApp:packageDistributionForCurrentOS
         shell: bash
 
-      - name: Upload Desktop and Wasm Artifacts
+      - name: Upload Desktop Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-build-artifacts
           path: |
             composeApp/build/compose/binaries/main/app/
-            composeApp/build/dist/wasmJs/productionExecutable/
           if-no-files-found: ignore
 
   create_rolling_release:
     name: Create Rolling Release
-    needs: [build_android, build_desktop_and_wasm]
+    needs: [build_android, build_desktop]
     runs-on: ubuntu-latest
 
     steps:
