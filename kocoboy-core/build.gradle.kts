@@ -7,12 +7,15 @@ plugins {
 kotlin {
     jvm()
     @OptIn(ExperimentalWasmDsl::class)
-    wasmJs().browser()
+    wasmJs {
+        browser()
+        binaries.library()
+    }
     iosArm64()
     iosSimulatorArm64()
 
     compilerOptions {
-        freeCompilerArgs.add("-Xsuppress-warning=NOTHING_TO_INLINE")
+        freeCompilerArgs.add("-Xwarning-level=NOTHING_TO_INLINE:disabled")
     }
 
     sourceSets {
