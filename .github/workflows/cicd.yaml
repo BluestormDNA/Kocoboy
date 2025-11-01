@@ -2,6 +2,8 @@ name: CICD
 
 on:
   push:
+    branches:
+      - main
 
 permissions:
   pages: write
@@ -56,11 +58,15 @@ jobs:
       - name: Build Wasm
         run: ./gradlew :composeApp:wasmJsBrowserDistribution
 
-      - name: Upload Wasm Artifacts
+      - name: Zip Wasm
+        working-directory: composeApp/build/dist/wasmJs/productionExecutable
+        run: zip -r wasmJs.zip .
+
+      - name: Upload Wasm Zip Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wasm
-          path: composeApp/build/dist/wasmJs/productionExecutable/
+          name: wasm-build
+          path: composeApp/build/dist/wasmJs/productionExecutable/wasmJs.zip
           if-no-files-found: error
 
       - name: Upload pages artifact
@@ -133,7 +139,7 @@ jobs:
           tag_name: latest
           files: |
             android-apk/composeApp-release.apk
-            wasm/**
+            wasm-build/wasmJs.zip
             kocoboy-windows-latest.msi/*
             kocoboy-macos-latest.dmg/*
             kocoboy-ubuntu-latest.deb/*
