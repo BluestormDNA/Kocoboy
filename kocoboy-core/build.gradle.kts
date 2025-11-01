@@ -10,7 +10,6 @@ kotlin {
     wasmJs().browser()
     iosArm64()
     iosSimulatorArm64()
-    iosX64()
 
     compilerOptions {
         freeCompilerArgs.add("-Xsuppress-warning=NOTHING_TO_INLINE")
