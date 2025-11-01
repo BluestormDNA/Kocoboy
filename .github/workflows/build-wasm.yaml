@@ -32,9 +32,15 @@ jobs:
       - name: Upload Wasm Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: github-pages
+          name: wasm
           path: composeApp/build/dist/wasmJs/productionExecutable/
           if-no-files-found: error
+
+      - name: Upload pages artifact
+        id: deployment
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: composeApp/build/dist/wasmJs/productionExecutable/
 
   deploy_wasm:
     name: Deploy Wasm
