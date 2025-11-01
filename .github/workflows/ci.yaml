@@ -63,26 +63,3 @@ jobs:
           path: |
             composeApp/build/compose/binaries/main/app/
           if-no-files-found: ignore
-
-  create_rolling_release:
-    name: Create Rolling Release
-    needs: [build_android, build_desktop]
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download all build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create Rolling Release on GitHub
-        uses: softprops/action-gh-release@v1
-        with:
-          delete_tag: true
-          tag_name: rolling-release
-          name: "Rolling Release"
-          body: "Latest binaries"
-          prerelease: true
-          files: artifacts/**/*/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
