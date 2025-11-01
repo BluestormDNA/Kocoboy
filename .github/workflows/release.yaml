@@ -1,0 +1,32 @@
+name: Rolling Release
+
+on:
+  push:
+
+jobs:
+  release:
+    name: Create Rolling Release
+    runs-on: ubuntu-latest
+    needs: [build_android, build_desktop, build_wasm]
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: latest
+          name: "Latest Build"
+          body: "Automated release"
+          draft: false
+          prerelease: true
+          files: |
+            artifacts/android-apk/composeApp-release.apk
+            artifacts/kocoboy-windows-latest/*.msi
+            artifacts/kocoboy-macos-latest/*.dmg
+            artifacts/kocoboy-ubuntu-latest/*.deb
+            artifacts/wasm-artifact/*
