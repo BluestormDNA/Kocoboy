@@ -1,0 +1,43 @@
+name: Build Desktop
+
+on:
+  push:
+
+jobs:
+  build_desktop:
+    name: Build on ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            ext: msi
+          - os: macos-latest
+            ext: dmg
+          - os: ubuntu-latest
+            ext: deb
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Desktop Package
+        run: ./gradlew :composeApp:packageDistributionForCurrentOS
+        shell: bash
+
+      - name: Upload Desktop Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kocoboy-${{ matrix.os }}.${{ matrix.ext }}
+          path: composeApp/build/compose/binaries/main/${{ matrix.ext }}/*.${{ matrix.ext }}
+          if-no-files-found: ignore
