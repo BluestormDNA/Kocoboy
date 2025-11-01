@@ -6,7 +6,7 @@ on:
 permissions:
   pages: write
   id-token: write
-  contents: read
+  contents: write
 
 jobs:
   build_android:
@@ -130,10 +130,10 @@ jobs:
       - name: Create Release and Upload Artifacts
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: latest
           files: |
             android-apk/composeApp-release.apk
             wasm/**
             kocoboy-windows-latest.msi/*
             kocoboy-macos-latest.dmg/*
             kocoboy-ubuntu-latest.deb/*
-
