@@ -1,17 +1,17 @@
-name: Build
+name: Build and Create Rolling Release
 
 on:
   push:
 
 jobs:
-  build:
+  build_android:
+    name: Build Android APK
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup JDK
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -21,5 +21,69 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build Android App
-        run: ./gradlew assemble
+      - name: Build Android APK (Release)
+        run: ./gradlew :composeApp:assembleRelease
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: composeApp/build/outputs/apk/release/composeApp-release.apk
+          if-no-files-found: error
+
+  build_desktop_and_wasm:
+    name: Build on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Desktop Package and WasmJS
+        run: ./gradlew :composeApp:packageDistributionForCurrentOS :composeApp:wasmJsBrowserDistribution
+        shell: bash
+
+      - name: Upload Desktop and Wasm Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-build-artifacts
+          path: |
+            composeApp/build/compose/binaries/main/app/
+            composeApp/build/dist/wasmJs/productionExecutable/
+          if-no-files-found: ignore
+
+  create_rolling_release:
+    name: Create Rolling Release
+    needs: [build_android, build_desktop_and_wasm]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Rolling Release on GitHub
+        uses: softprops/action-gh-release@v1
+        with:
+          delete_tag: true
+          tag_name: rolling-release
+          name: "Rolling Release"
+          body: "Latest binaries"
+          prerelease: true
+          files: artifacts/**/*/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
