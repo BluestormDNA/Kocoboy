@@ -3,6 +3,11 @@ name: Build Wasm
 on:
   push:
 
+permissions:
+  pages: write
+  id-token: write
+  contents: read
+
 jobs:
   build_wasm:
     name: Build Wasm
@@ -30,3 +35,14 @@ jobs:
           name: wasm
           path: composeApp/build/dist/wasmJs/productionExecutable/
           if-no-files-found: error
+
+  deploy_wasm:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
