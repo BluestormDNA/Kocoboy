@@ -35,8 +35,13 @@ jobs:
     name: Build on ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
-        ext: [msi, dmg, deb]
+        include:
+          - os: windows-latest
+            ext: msi
+          - os: macos-latest
+            ext: dmg
+          - os: ubuntu-latest
+            ext: deb
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -61,5 +66,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kocoboy-${{ matrix.os }}.${{ matrix.ext }}
-          path: composeApp/build/compose/binaries/main/app/${{ matrix.ext }}/*.${{ matrix.ext }}
+          path: composeApp/build/compose/binaries/main/${{ matrix.ext }}/*.${{ matrix.ext }}
           if-no-files-found: ignore
