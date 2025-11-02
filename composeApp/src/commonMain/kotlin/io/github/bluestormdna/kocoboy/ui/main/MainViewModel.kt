@@ -16,7 +16,8 @@ import io.github.bluestormdna.kocoboy.ui.dmg.ClassicColorTheme
 import io.github.bluestormdna.kocoboy.ui.dmg.ClassicScreenTheme
 import io.github.bluestormdna.kocoboy.ui.dmg.ColorTheme
 import io.github.bluestormdna.kocoboy.ui.dmg.ScreenTheme
-import io.github.vinceglb.filekit.core.PlatformFile
+import io.github.vinceglb.filekit.PlatformFile
+import io.github.vinceglb.filekit.readBytes
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow

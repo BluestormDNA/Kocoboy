@@ -1,20 +1,19 @@
 [versions]
-agp = "8.11.0"
+agp = "8.13.0"
 android-compileSdk = "36"
 android-minSdk = "26"
 android-targetSdk = "36"
-androidx-activityCompose = "1.10.1"
-androidx-lifecycle = "2.9.1"
-compose-multiplatform = "1.8.2"
-filekitCompose = "0.8.8"
-kotlin = "2.2.0"
+androidx-activityCompose = "1.11.0"
+androidx-lifecycle = "2.9.5"
+compose-multiplatform = "1.9.2"
+filekit = "0.12.0"
+kotlin = "2.2.21"
 kotlinx-coroutines = "1.10.2"
-kotlinxDatetime = "0.6.2"
+kotlinxDatetime = "0.7.1"
 materialIconsCore = "1.7.3"
-skiko = "0.9.4"
 
 [libraries]
-filekit-compose = { module = "io.github.vinceglb:filekit-compose", version.ref = "filekitCompose" }
+filekit-compose = { module = "io.github.vinceglb:filekit-dialogs-compose", version.ref = "filekit" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
 androidx-lifecycle-viewmodel = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
@@ -22,7 +21,6 @@ kotlinx-coroutines-swing = { group = "org.jetbrains.kotlinx", name = "kotlinx-co
 kotlinx-coroutines = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 compose-material-icons-core = { module = "org.jetbrains.compose.material:material-icons-core", version.ref = "materialIconsCore" }
-skiko = { module = "org.jetbrains.skiko:skiko", version.ref = "skiko" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

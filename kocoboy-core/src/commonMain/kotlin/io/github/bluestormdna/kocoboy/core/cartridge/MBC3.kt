@@ -1,13 +1,14 @@
 package io.github.bluestormdna.kocoboy.core.cartridge
 
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
+import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.ExperimentalTime
 
 
-@OptIn(ExperimentalUnsignedTypes::class)
+@OptIn(ExperimentalUnsignedTypes::class, ExperimentalTime::class)
 class MBC3(private val rom: UByteArray): Cartridge {
 
     private val eRam = UByteArray(0x8000)
