@@ -14,13 +14,13 @@ import io.github.bluestormdna.kocoboy.ui.dmg.ColorTheme
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
     secondary = PurpleGrey80,
-    tertiary = Pink80
+    tertiary = Pink80,
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = Purple40,
     secondary = PurpleGrey40,
-    tertiary = Pink40
+    tertiary = Pink40,
 )
 
 val LocalColorTheme = compositionLocalOf<ColorTheme> { ClassicColorTheme }
@@ -29,7 +29,7 @@ val LocalColorTheme = compositionLocalOf<ColorTheme> { ClassicColorTheme }
 fun KocoBoyTheme(
     colorTheme: ColorTheme,
     darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val colorScheme = when {
         darkTheme -> DarkColorScheme
@@ -40,12 +40,13 @@ fun KocoBoyTheme(
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,
-            content = content
+            content = content,
         )
     }
 }
 
 object KocoBoyTheme {
     val colors: ColorTheme
-        @Composable @ReadOnlyComposable get() = LocalColorTheme.current
+        @Composable @ReadOnlyComposable
+        get() = LocalColorTheme.current
 }

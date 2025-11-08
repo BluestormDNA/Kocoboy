@@ -5,6 +5,10 @@ import io.github.bluestormdna.kocoboy.core.cartridge.DefaultCartridgeHeader
 import io.github.bluestormdna.kocoboy.core.cartridge.EmptyCartridgeHeader
 import io.github.bluestormdna.kocoboy.core.cartridge.resolveCartridgeType
 import io.github.bluestormdna.kocoboy.host.Host
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource.Monotonic.markNow
+import kotlin.time.measureTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -14,10 +18,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
-import kotlin.time.TimeSource.Monotonic.markNow
-import kotlin.time.measureTime
 
 class Emulator(
     private val host: Host,
@@ -95,24 +95,24 @@ class Emulator(
                 val sleepTime = targetTime - frameTime - 3.milliseconds
 
                 if (sleepTime.inWholeMilliseconds > 1) {
-                    //val preSleepTime = startOfFrame.elapsedNow()
+                    // val preSleepTime = startOfFrame.elapsedNow()
                     // delay doesn't have enough resolution so try to sleep less
                     // and busy wait at the end
                     // todo review this per platform as they seem to have differences
                     // and actual/expect heuristics
                     delay(sleepTime.inWholeMilliseconds / 2)
-                    //println("postSleepElapsed: ${startOfFrame.elapsedNow() - preSleepTime}")
+                    // println("postSleepElapsed: ${startOfFrame.elapsedNow() - preSleepTime}")
                 }
 
-                //("targetTime: $targetTime frameTime: $frameTime sleepTime: $sleepTime")
-                //println("End of frame: ${startOfFrame.elapsedNow()}")
+                // ("targetTime: $targetTime frameTime: $frameTime sleepTime: $sleepTime")
+                // println("End of frame: ${startOfFrame.elapsedNow()}")
 
                 while (startOfFrame.elapsedNow() < targetTime) {
                     yield()
                 }
 
-                //println("targetTime: $targetTime frameTime: $frameTime sleepTime: $sleepTime")
-                //println("End of frame: ${startOfFrame.elapsedNow()}")
+                // println("targetTime: $targetTime frameTime: $frameTime sleepTime: $sleepTime")
+                // println("End of frame: ${startOfFrame.elapsedNow()}")
             }
 
             reset()
@@ -123,7 +123,6 @@ class Emulator(
             }
         }
     }
-
 
     // Only for testing and profiling purposes
     fun runUncapped() {

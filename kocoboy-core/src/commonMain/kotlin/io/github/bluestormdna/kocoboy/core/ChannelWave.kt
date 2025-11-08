@@ -90,13 +90,8 @@ class ChannelWave {
             } else {
                 sample = 0
             }
-
         }
-
     }
 
-    fun isEnabled() : Boolean {
-        return isEnabled
-    }
-
+    fun isEnabled(): Boolean = isEnabled
 }

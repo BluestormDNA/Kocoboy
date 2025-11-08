@@ -87,9 +87,7 @@ class ChannelNoise {
         }
     }
 
-    fun isEnabled(): Boolean {
-        return isEnabled
-    }
+    fun isEnabled(): Boolean = isEnabled
 
     fun tickSampleGenerator(cycles: Int) {
         counter -= cycles
@@ -110,5 +108,4 @@ class ChannelNoise {
             lfsr = lfsr or (b shl 6)
         }
     }
-
 }

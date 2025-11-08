@@ -7,11 +7,7 @@ import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ColorType
 import org.jetbrains.skia.ImageInfo
 
-actual fun createImageBitmapFromIntArray(
-    intArray: IntArray,
-    width: Int,
-    height: Int
-): ImageBitmap {
+actual fun createImageBitmapFromIntArray(intArray: IntArray, width: Int, height: Int): ImageBitmap {
     val screenImageInfo = ImageInfo(160, 144, ColorType.N32, alphaType = ColorAlphaType.OPAQUE)
 
     val byteArray = intArray.toByteArray()
@@ -30,7 +26,7 @@ fun IntArray.toByteArray(): ByteArray {
         byteArray[i * 4] = (color and 0xFF).toByte()
         byteArray[i * 4 + 1] = (color shr 8).toByte()
         byteArray[i * 4 + 2] = (color shr 16).toByte()
-        byteArray[i * 4 + 3] =(color shr 24).toByte()
+        byteArray[i * 4 + 3] = (color shr 24).toByte()
     }
     return byteArray
 }

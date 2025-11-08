@@ -1,6 +1,5 @@
 package io.github.bluestormdna.kocoboy.core.cartridge
 
-
 @OptIn(ExperimentalUnsignedTypes::class)
 class MBC2(private val rom: UByteArray) : Cartridge {
 
@@ -9,13 +8,10 @@ class MBC2(private val rom: UByteArray) : Cartridge {
     private var eRamEnabled = false
     private var romBank = 1
 
-    override fun readLoROM(addr: UShort): UByte {
-        return rom[addr.toInt()]
-    }
+    override fun readLoROM(addr: UShort): UByte = rom[addr.toInt()]
 
-    override fun readHiROM(addr: UShort): UByte {
-        return rom[(ROM_OFFSET * romBank) + (addr and 0x3FFFu).toInt()]
-    }
+    override fun readHiROM(addr: UShort): UByte =
+        rom[(ROM_OFFSET * romBank) + (addr and 0x3FFFu).toInt()]
 
     override fun writeROM(addr: UShort, value: UByte) {
         when (addr) {
@@ -24,12 +20,10 @@ class MBC2(private val rom: UByteArray) : Cartridge {
         }
     }
 
-    override fun readERAM(addr: UShort): UByte {
-        return if (eRamEnabled) {
-            eRam[(addr and 0x1FFFu).toInt()]
-        } else {
-            0xFFu
-        }
+    override fun readERAM(addr: UShort): UByte = if (eRamEnabled) {
+        eRam[(addr and 0x1FFFu).toInt()]
+    } else {
+        0xFFu
     }
 
     override fun writeERAM(addr: UShort, value: UByte) {

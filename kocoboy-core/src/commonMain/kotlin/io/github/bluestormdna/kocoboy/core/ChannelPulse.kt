@@ -142,9 +142,7 @@ class ChannelPulse {
         }
     }
 
-    fun isEnabled(): Boolean {
-        return isEnabled
-    }
+    fun isEnabled(): Boolean = isEnabled
 
     fun disable() {
         isEnabled = false

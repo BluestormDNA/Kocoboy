@@ -1,6 +1,5 @@
 package io.github.bluestormdna.kocoboy
 
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
@@ -57,7 +56,7 @@ fun App() {
 
     val colorTheme by vm.colorTheme.collectAsState()
     val frameBuffer by vm.frame.collectAsState()
-    //val vps by vm.vps.collectAsState()
+    // val vps by vm.vps.collectAsState()
     val poweredOn by vm.poweredOn.collectAsState()
     val cartridgeHeader by vm.cartridgeHeader.collectAsState()
 
@@ -84,7 +83,7 @@ fun App() {
             Box(
                 Modifier.fillMaxSize().padding(contentPadding),
             ) {
-                //Text(text = vps.toString())
+                // Text(text = vps.toString())
                 var showSettings by rememberSaveable { mutableStateOf(false) }
 
                 Row(

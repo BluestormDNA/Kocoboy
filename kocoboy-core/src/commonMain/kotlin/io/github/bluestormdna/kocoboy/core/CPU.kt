@@ -4,7 +4,6 @@ package io.github.bluestormdna.kocoboy.core
 
 import kotlin.experimental.and
 
-
 @OptIn(ExperimentalStdlibApi::class)
 class CPU(private val bus: Bus) {
 
@@ -140,17 +139,15 @@ class CPU(private val bus: Bus) {
 
     private var cycles = 0
 
-    private inline fun fetch(): Int {
-        return bus.readByte(PC++)
-    }
+    private inline fun fetch(): Int = bus.readByte(PC++)
 
     private var debug = false
 
     fun execute(): Int {
-        //if (debug) {
+        // if (debug) {
         //    //val line = generateInstructionLog()
         //    //println(line)
-        //}
+        // }
 
         cycles = 0
 
@@ -787,8 +784,8 @@ class CPU(private val bus: Bus) {
 
     private fun addSigned8(register: Int, value: Int): Int {
         F = 0
-        //flagZ = false
-        //flagN = false
+        // flagZ = false
+        // flagN = false
         flagH = ((register and 0xF) + (value and 0xF)) > 0xF
         flagC = ((register and 0xFF) + value) shr 8 and 0xFF != 0
         return (register + value.toByte()) and 0xFFFF
@@ -936,7 +933,7 @@ class CPU(private val bus: Bus) {
         val result = A + value
         F = 0
         flagZ = result and 0xFF == 0
-        //flagN = false
+        // flagN = false
         flagH = ((A and 0xF) + (value and 0xF)) > 0xF
         flagC = result shr 8 and 0xFF != 0
         A = result
@@ -947,7 +944,7 @@ class CPU(private val bus: Bus) {
         val result = A + value + carry
         F = 0
         flagZ = result and 0xFF == 0
-        //flagN = false
+        // flagN = false
         flagH = ((A and 0xF) + (value and 0xF) + carry) > 0xF
         flagC = result shr 8 and 0xFF != 0
         A = result
@@ -976,9 +973,9 @@ class CPU(private val bus: Bus) {
         val result = A and value
         F = 0
         flagZ = result and 0xFF == 0
-        //flagN = false
+        // flagN = false
         flagH = true
-        //flagC = false
+        // flagC = false
         A = result
     }
 
@@ -986,9 +983,9 @@ class CPU(private val bus: Bus) {
         val result = A xor value
         F = 0
         flagZ = result and 0xFF == 0
-        //flagN = false
-        //flagH = false
-        //flagC = false
+        // flagN = false
+        // flagH = false
+        // flagC = false
         A = result
     }
 
@@ -996,9 +993,9 @@ class CPU(private val bus: Bus) {
         val result = A or value
         F = 0
         flagZ = result and 0xFF == 0
-        //flagN = false
-        //flagH = false
-        //flagC = false
+        // flagN = false
+        // flagH = false
+        // flagC = false
         A = result
     }
 
@@ -1037,8 +1034,8 @@ class CPU(private val bus: Bus) {
         val result = ((value shl 1) or (value shr 7))
         F = 0
         flagZ = result and 0xFF == 0
-        //flagN = false
-        //flagH = false
+        // flagN = false
+        // flagH = false
         flagC = (value and 0x80) != 0
         return result
     }
@@ -1047,8 +1044,8 @@ class CPU(private val bus: Bus) {
         val result = ((value shr 1) or (value shl 7))
         F = 0
         flagZ = result and 0xFF == 0
-        //flagN = false
-        //flagH = false
+        // flagN = false
+        // flagH = false
         flagC = (value and 0x1) != 0
         return result
     }
@@ -1058,8 +1055,8 @@ class CPU(private val bus: Bus) {
         val result = value shl 1 or prevC
         F = 0
         flagZ = result and 0xFF == 0
-        //flagN = false
-        //flagH = false
+        // flagN = false
+        // flagH = false
         flagC = (value and 0x80) != 0
         return result
     }
@@ -1069,8 +1066,8 @@ class CPU(private val bus: Bus) {
         val result = value shr 1 or prevC
         F = 0
         flagZ = result and 0xFF == 0
-        //flagN = false
-        //flagH = false
+        // flagN = false
+        // flagH = false
         flagC = (value and 0x1) != 0
         return result
     }
@@ -1079,8 +1076,8 @@ class CPU(private val bus: Bus) {
         val result = value shl 1
         F = 0
         flagZ = result and 0xFF == 0
-        //flagN = false
-        //flagH = false
+        // flagN = false
+        // flagH = false
         flagC = (value and 0x80) != 0
         return result
     }
@@ -1089,8 +1086,8 @@ class CPU(private val bus: Bus) {
         val result = value shr 1 or (value and 0x80)
         F = 0
         flagZ = result and 0xFF == 0
-        //flagN = false
-        //flagH = false
+        // flagN = false
+        // flagH = false
         flagC = (value and 0x1) != 0
         return result
     }
@@ -1099,9 +1096,9 @@ class CPU(private val bus: Bus) {
         val result = ((value and 0xF0) shr 4) or ((value and 0x0F) shl 4)
         F = 0
         flagZ = result and 0xFF == 0
-        //flagN = false
-        //flagH = false
-        //flagC = false
+        // flagN = false
+        // flagH = false
+        // flagC = false
         return result
     }
 
@@ -1109,8 +1106,8 @@ class CPU(private val bus: Bus) {
         val result = value shr 1
         F = 0
         flagZ = result and 0xFF == 0
-        //flagN = false
-        //flagH = false
+        // flagN = false
+        // flagH = false
         flagC = (value and 0x1) != 0
         return result
     }
@@ -1121,13 +1118,9 @@ class CPU(private val bus: Bus) {
         flagH = true
     }
 
-    private fun res(b: Int, value: Int): Int {
-        return value and b.inv()
-    }
+    private fun res(b: Int, value: Int): Int = value and b.inv()
 
-    private fun set(b: Int, value: Int): Int {
-        return value or b
-    }
+    private fun set(b: Int, value: Int): Int = value or b
 
     private val byteLengthFormat = HexFormat {
         number.removeLeadingZeros = true
@@ -1141,10 +1134,33 @@ class CPU(private val bus: Bus) {
     }
 
     private fun generateInstructionLog(): String {
-        //A: 00 F: 00 B: 00 C: 00 D: 00 E: 00 H: 00 L: 00 SP: 0000 PC: 00:0000 (31 FE FF AF)
-        return "A: ${A.toHexString(byteLengthFormat)} F: ${F.toHexString(byteLengthFormat)} B: ${B.toHexString(byteLengthFormat)} C: ${C.toHexString(byteLengthFormat)} D: ${D.toHexString(byteLengthFormat)}" +
-                " E: ${E.toHexString(byteLengthFormat)} H: ${H.toHexString(byteLengthFormat)} L: ${L.toHexString(byteLengthFormat)} SP: ${SP.toHexString(shortLengthFormat)}" +
-                " PC: 00:${PC.toHexString(shortLengthFormat)} (${bus.readByte(PC + 0).toHexString(byteLengthFormat)} ${bus.readByte(PC + 1).toHexString(byteLengthFormat)} ${bus.readByte(PC + 2).toHexString(byteLengthFormat)} ${bus.readByte(PC + 3).toHexString(byteLengthFormat)})"
+        // A: 00 F: 00 B: 00 C: 00 D: 00 E: 00 H: 00 L: 00 SP: 0000 PC: 00:0000 (31 FE FF AF)
+        return "A: ${A.toHexString(
+            byteLengthFormat,
+        )} F: ${F.toHexString(
+            byteLengthFormat,
+        )} B: ${B.toHexString(
+            byteLengthFormat,
+        )} C: ${C.toHexString(byteLengthFormat)} D: ${D.toHexString(byteLengthFormat)}" +
+            " E: ${E.toHexString(
+                byteLengthFormat,
+            )} H: ${H.toHexString(
+                byteLengthFormat,
+            )} L: ${L.toHexString(byteLengthFormat)} SP: ${SP.toHexString(shortLengthFormat)}" +
+            " PC: 00:${PC.toHexString(
+                shortLengthFormat,
+            )} (${bus.readByte(
+                PC + 0,
+            ).toHexString(
+                byteLengthFormat,
+            )} ${bus.readByte(
+                PC + 1,
+            ).toHexString(
+                byteLengthFormat,
+            )} ${bus.readByte(
+                PC + 2,
+            ).toHexString(
+                byteLengthFormat,
+            )} ${bus.readByte(PC + 3).toHexString(byteLengthFormat)})"
     }
-
 }
