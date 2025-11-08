@@ -774,21 +774,23 @@ fun GameBoyLayout(modifier: Modifier = Modifier, content: @Composable () -> Unit
             ),
         )
 
+        val gamepadBorders = spacingPadLeft + spacingMainButtonsRight
         val gamePad = measurables[3].measure(
             constraints.copy(
                 minHeight = padHeight,
                 maxHeight = padHeight,
-                minWidth = constraints.minWidth - spacingPadLeft + spacingMainButtonsRight,
-                maxWidth = constraints.maxWidth - spacingPadLeft + spacingMainButtonsRight,
+                minWidth = constraints.minWidth - gamepadBorders,
+                maxWidth = constraints.maxWidth - gamepadBorders,
             ),
         )
 
+        val selectStartBorders = spacingSelectStartLeft + spacingSelectStartRight
         val selectStart = measurables[4].measure(
             constraints.copy(
                 minHeight = selectStartHeight,
                 maxHeight = selectStartHeight,
-                minWidth = constraints.minWidth - spacingSelectStartLeft + spacingSelectStartRight,
-                maxWidth = constraints.maxWidth - spacingSelectStartLeft + spacingSelectStartRight,
+                minWidth = constraints.minWidth - selectStartBorders,
+                maxWidth = constraints.maxWidth - selectStartBorders,
             ),
         )
 
