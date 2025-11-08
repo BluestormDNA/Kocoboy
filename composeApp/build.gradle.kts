@@ -43,12 +43,13 @@ kotlin {
         }
         commonMain.dependencies {
             implementation(project(":kocoboy-core"))
-            implementation("org.jetbrains.compose.runtime:runtime:1.10.0-beta01")
-            implementation("org.jetbrains.compose.foundation:foundation:1.10.0-beta01")
-            implementation("org.jetbrains.compose.material3:material3:1.9.0")
-            implementation("org.jetbrains.compose.ui:ui:1.10.0-beta01")
-            implementation("org.jetbrains.compose.components:components-resources:1.10.0-beta01")
-            implementation("org.jetbrains.compose.ui:ui-tooling-preview:1.10.0-beta01")
+            implementation(libs.compose.runtime)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.ui)
+            implementation(libs.compose.material3)
+            implementation(libs.compose.resources)
+            implementation(libs.compose.tooling)
+            implementation(libs.compose.preview)
             implementation(libs.filekit.compose)
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtime.compose)
@@ -91,10 +92,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-}
-
-dependencies {
-    debugImplementation("org.jetbrains.compose.ui:ui-tooling:1.10.0-beta01")
 }
 
 compose.desktop {

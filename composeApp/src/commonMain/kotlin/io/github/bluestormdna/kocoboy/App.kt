@@ -50,10 +50,8 @@ import io.github.bluestormdna.kocoboy.ui.main.MainViewModel
 import io.github.bluestormdna.kocoboy.ui.main.SideBar
 import io.github.bluestormdna.kocoboy.ui.theme.KocoBoyTheme
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
-@Preview
 fun App() {
     val vm = viewModel<MainViewModel>(factory = MainViewModel.factory)
 
