@@ -12,17 +12,17 @@ class PPU(private val host: Host) {
     private val frameBuffer = IntArray(160 * 144)
 
     // PPU Regs
-    private var lcdc: Byte = 0 //FF40 - LCDC - LCD Control (R/W)
-    private var stat: Byte = 0 //FF41 - STAT - LCDC Status (R/W)
-    private var scy: Byte = 0  //FF42 - SCY - Scroll Y (R/W)
-    private var scx: Byte = 0  //FF43 - SCX - Scroll X (R/W)
-    private var ly: Byte = 0   //FF44 - LY - LCDC Y-Coordinate (R) bypasses on write always 0
-    private var lyc: Byte = 0  //FF45 - LYC - LY Compare(R/W)
-    private var bgp: Byte = 0  //FF47 - BGP - BG Palette Data(R/W) - Non CGB Mode Only
-    private var obp0: Byte = 0 //FF48 - OBP0 - Object Palette 0 Data (R/W) - Non CGB Mode Only
-    private var obp1: Byte = 0 //FF49 - OBP1 - Object Palette 1 Data (R/W) - Non CGB Mode Only
-    private var wy: Byte = 0   //FF4A - WY - Window Y Position (R/W)
-    private var wx: Byte = 0   //FF4B - WX - Window X Position minus 7 (R/W)
+    private var lcdc: Byte = 0 // FF40 - LCDC - LCD Control (R/W)
+    private var stat: Byte = 0 // FF41 - STAT - LCDC Status (R/W)
+    private var scy: Byte = 0 // FF42 - SCY - Scroll Y (R/W)
+    private var scx: Byte = 0 // FF43 - SCX - Scroll X (R/W)
+    private var ly: Byte = 0 // FF44 - LY - LCDC Y-Coordinate (R) bypasses on write always 0
+    private var lyc: Byte = 0 // FF45 - LYC - LY Compare(R/W)
+    private var bgp: Byte = 0 // FF47 - BGP - BG Palette Data(R/W) - Non CGB Mode Only
+    private var obp0: Byte = 0 // FF48 - OBP0 - Object Palette 0 Data (R/W) - Non CGB Mode Only
+    private var obp1: Byte = 0 // FF49 - OBP1 - Object Palette 1 Data (R/W) - Non CGB Mode Only
+    private var wy: Byte = 0 // FF4A - WY - Window Y Position (R/W)
+    private var wx: Byte = 0 // FF4B - WX - Window X Position minus 7 (R/W)
 
     // lcdc bit fields
     private var isEnabled: Boolean = false
@@ -32,21 +32,19 @@ class PPU(private val host: Host) {
     private val objectPalette0 = IntArray(4)
     private val objectPalette1 = IntArray(4)
 
-    fun read(ioAddress: Int): Byte {
-        return when (ioAddress) {
-            0x40 -> lcdc
-            0x41 -> stat
-            0x42 -> scy
-            0x43 -> scx
-            0x44 -> ly
-            0x45 -> lyc
-            0x47 -> bgp
-            0x48 -> obp0
-            0x49 -> obp1
-            0x4A -> wy
-            0x4B -> wx
-            else -> 0xFF.toByte()
-        }
+    fun read(ioAddress: Int): Byte = when (ioAddress) {
+        0x40 -> lcdc
+        0x41 -> stat
+        0x42 -> scy
+        0x43 -> scx
+        0x44 -> ly
+        0x45 -> lyc
+        0x47 -> bgp
+        0x48 -> obp0
+        0x49 -> obp1
+        0x4A -> wy
+        0x4B -> wx
+        else -> 0xFF.toByte()
     }
 
     fun write(ioAddress: Int, value: Byte, bus: Bus) {
@@ -83,7 +81,7 @@ class PPU(private val host: Host) {
                 lyc = value
                 handleCoincidenceFlag(bus)
             }
-            0x46 -> bus.handleDma(value) //todo internalize
+            0x46 -> bus.handleDma(value) // todo internalize
             0x47 -> {
                 if (value == bgp) return
                 bgp = value
@@ -141,11 +139,11 @@ class PPU(private val host: Host) {
                     bus.requestInterrupt(LCD_INTERRUPT)
                 }
 
-                if (ly.toInt() and 0xFF == SCREEN_HEIGHT) { //check if we arrived Vblank
+                if (ly.toInt() and 0xFF == SCREEN_HEIGHT) { // check if we arrived Vblank
                     updateStatMode(1) // Set VBlank
                     bus.requestInterrupt(VBLANK_INTERRUPT)
                     host.render(frameBuffer)
-                } else { //not arrived yet so return to mode 2 / OAM
+                } else { // not arrived yet so return to mode 2 / OAM
                     updateStatMode(2)
                 }
             }
@@ -159,7 +157,7 @@ class PPU(private val host: Host) {
                     bus.requestInterrupt(LCD_INTERRUPT)
                 }
 
-                if ((ly.toInt() and 0xFF) > SCREEN_VBLANK_HEIGHT) { //check end of VBLANK
+                if ((ly.toInt() and 0xFF) > SCREEN_VBLANK_HEIGHT) { // check end of VBLANK
                     updateStatMode(2)
                     ly = 0
                     handleCoincidenceFlag(bus)
@@ -185,19 +183,19 @@ class PPU(private val host: Host) {
     }
 
     private fun drawScanLine(bus: Bus) {
-        if (isBit(0, lcdc)) { //Bit 0 - BG Display (0=Off, 1=On)
+        if (isBit(0, lcdc)) { // Bit 0 - BG Display (0=Off, 1=On)
             renderBG(bus)
         }
-        if (isBit(1, lcdc)) { //Bit 1 - OBJ (Sprite) Display Enable
-            //val time = measureTime {
+        if (isBit(1, lcdc)) { // Bit 1 - OBJ (Sprite) Display Enable
+            // val time = measureTime {
             renderSpritesBuffer(bus)
-            //}
-            //println("meassured: $time on ${mmu.LY.toInt() and 0xFF}")
+            // }
+            // println("meassured: $time on ${mmu.LY.toInt() and 0xFF}")
         }
     }
 
     private fun renderBG(bus: Bus) {
-        val WX = (wx.toInt() and 0xFF) - 7 //WX needs -7 Offset
+        val WX = (wx.toInt() and 0xFF) - 7 // WX needs -7 Offset
         val WY = wy.toInt() and 0xFF
         val LY = ly.toInt() and 0xFF
         val SCY = scy.toInt() and 0xFF
@@ -228,7 +226,8 @@ class PPU(private val host: Host) {
                 val tileLoc = if (isSignedAddress(lcdc)) {
                     getTileDataAddress(lcdc) + bus.readVRAM(tileAddress) * 16
                 } else {
-                    getTileDataAddress(lcdc) + (bus.readVRAM(tileAddress).toByte() /*sbyte*/ + 128) * 16
+                    // Signed
+                    getTileDataAddress(lcdc) + (bus.readVRAM(tileAddress).toByte() + 128) * 16
                 }
 
                 lo = bus.readVRAM((tileLoc + tileLine)).toByte()
@@ -260,21 +259,28 @@ class PPU(private val host: Host) {
         var orderBufferPointer = 0
         while (orderBuffer[orderBufferPointer] != -1) {
             val index = orderBuffer[orderBufferPointer]
-            val x = bus.readOAM(index + 1) - 8 //Byte1 - X Position //needs 8 offset
+            val x = bus.readOAM(index + 1) - 8 // Byte1 - X Position //needs 8 offset
             // Out of range X values are not drawn but will consume
             // sprite object slots towards the 10 limit (hence not filtering them on the mmu)
             orderBufferPointer++
             if (x <= -8 || x >= 160) continue
 
-            val y = bus.readOAM(index) - 16 //Byte0 - Y Position //needs 16 offset
-            val tile = bus.readOAM(index + 2) //Byte2 - Tile/Pattern Number
-            val attr = bus.readOAM(index + 3).toByte() //Byte3 - Attributes/Flags
+            val y = bus.readOAM(index) - 16 // Byte0 - Y Position //needs 16 offset
+            val tile = bus.readOAM(index + 2) // Byte2 - Tile/Pattern Number
+            val attr = bus.readOAM(index + 3).toByte() // Byte3 - Attributes/Flags
             val tileIndex = tile and (spriteSize shr 4).inv()
 
-            //Bit4   Palette number  **Non CGB Mode Only** (0=OBP0, 1=OBP1)
+            // Bit4   Palette number  **Non CGB Mode Only** (0=OBP0, 1=OBP1)
             val palette = if (isBit(4, attr)) objectPalette1 else objectPalette0
 
-            val tileRow = if (isYFlipped(attr)) spriteSize - 1 - (unsignedLy - y) else (unsignedLy - y)
+            val tileRow = if (isYFlipped(attr)) {
+                spriteSize - 1 - (unsignedLy - y)
+            } else {
+                (
+                    unsignedLy -
+                        y
+                    )
+            }
 
             val tileAddress = ((0x8000 + (tileIndex * 16) + (tileRow * 2)))
             val lo = bus.readVRAM(tileAddress)
@@ -285,7 +291,9 @@ class PPU(private val host: Host) {
                     val idPos = if (isXFlipped(attr)) p else 7 - p
                     val colorId: Int = getColorIdBits(idPos, lo.toByte(), hi.toByte())
 
-                    if (!isTransparent(colorId) && (isAboveBG(attr) || isBGWhite(x + p, unsignedLy))) {
+                    if (!isTransparent(colorId) &&
+                        (isAboveBG(attr) || isBGWhite(x + p, unsignedLy))
+                    ) {
                         val color = palette[colorId]
                         frameBuffer.write(x + p, unsignedLy, color)
                     }
@@ -295,66 +303,55 @@ class PPU(private val host: Host) {
     }
 
     private inline fun isWindow(LCDC: Byte, WY: Int, LY: Int): Boolean {
-        //Bit 5 - Window Display Enable (0=Off, 1=On)
+        // Bit 5 - Window Display Enable (0=Off, 1=On)
         return isBit(5, LCDC) && WY <= LY
     }
 
     private inline fun spriteSize(LCDC: Byte): Int {
-        //Bit 2 - OBJ (Sprite) Size (0=8x8, 1=8x16)
+        // Bit 2 - OBJ (Sprite) Size (0=8x8, 1=8x16)
         return if (isBit(2, LCDC)) 16 else 8
     }
 
-
     private inline fun isXFlipped(attr: Byte): Boolean {
-        //Bit5   X flip(0 = Normal, 1 = Horizontally mirrored)
+        // Bit5   X flip(0 = Normal, 1 = Horizontally mirrored)
         return isBit(5, attr)
     }
 
     private inline fun isYFlipped(attr: Byte): Boolean {
-        //Bit6 Y flip(0 = Normal, 1 = Vertically mirrored)
+        // Bit6 Y flip(0 = Normal, 1 = Vertically mirrored)
         return isBit(6, attr)
     }
 
-    private inline fun isTransparent(b: Int): Boolean {
-        return b == 0
-    }
+    private inline fun isTransparent(b: Int): Boolean = b == 0
 
-    private fun isBGWhite(x: Int, y: Int): Boolean {
-        return frameBuffer.read(x, y) == backgroundPalette[0]
-    }
-
+    private fun isBGWhite(x: Int, y: Int): Boolean = frameBuffer.read(x, y) == backgroundPalette[0]
 
     private inline fun isAboveBG(attr: Byte): Boolean {
-        //Bit7 OBJ-to - BG Priority(0 = OBJ Above BG, 1 = OBJ Behind BG color 1 - 3)
+        // Bit7 OBJ-to - BG Priority(0 = OBJ Above BG, 1 = OBJ Behind BG color 1 - 3)
         return attr.toUInt() and 0x80u == 0u
     }
 
-
     private inline fun isSignedAddress(LCDC: Byte): Boolean {
-        //Bit 4 - BG & Window Tile Data Select   (0=8800-97FF, 1=8000-8FFF)
+        // Bit 4 - BG & Window Tile Data Select   (0=8800-97FF, 1=8000-8FFF)
         return isBit(4, LCDC)
     }
 
     private inline fun getBackgroundTileMapAddress(LCDC: Byte): Int {
-        //Bit 3 - BG Tile Map Display Select     (0=9800-9BFF, 1=9C00-9FFF)
+        // Bit 3 - BG Tile Map Display Select     (0=9800-9BFF, 1=9C00-9FFF)
         return if (isBit(3, LCDC)) 0x9C00 else 0x9800
     }
 
-
     private inline fun getWindowTileMapAddress(LCDC: Byte): Int {
-        //Bit 6 - Window Tile Map Display Select(0 = 9800 - 9BFF, 1 = 9C00 - 9FFF)
+        // Bit 6 - Window Tile Map Display Select(0 = 9800 - 9BFF, 1 = 9C00 - 9FFF)
         return if (isBit(6, LCDC)) 0x9C00 else 0x9800
     }
 
-
     private inline fun getTileDataAddress(LCDC: Byte): Int {
-        //Bit 4 - BG & Window Tile Data Select   (0=8800-97FF, 1=8000-8FFF)
-        return if (isBit(4, LCDC)) 0x8000 else 0x8800 //0x8800 signed area
+        // Bit 4 - BG & Window Tile Data Select   (0=8800-97FF, 1=8000-8FFF)
+        return if (isBit(4, LCDC)) 0x8000 else 0x8800 // 0x8800 signed area
     }
 
-    private inline fun IntArray.read(x: Int, y: Int): Int {
-        return this[x + (y * SCREEN_WIDTH)]
-    }
+    private inline fun IntArray.read(x: Int, y: Int): Int = this[x + (y * SCREEN_WIDTH)]
 
     private inline fun IntArray.write(x: Int, y: Int, color: Int) {
         this[x + (y * SCREEN_WIDTH)] = color
@@ -381,13 +378,13 @@ class PPU(private val host: Host) {
             0xFFFFFFFF.toInt(),
             0xFFA9A9A9.toInt(),
             0xFF545454.toInt(),
-            0xFF000000.toInt()
+            0xFF000000.toInt(),
         )
         private val color = intArrayOf(
             0xFF9AA13C.toInt(),
             0xFF6c712a.toInt(),
             0xFF4d511e.toInt(),
-            0xFF1f200c.toInt()
+            0xFF1f200c.toInt(),
         )
 
         private const val SCREEN_WIDTH = 160

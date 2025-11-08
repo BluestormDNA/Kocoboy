@@ -9,7 +9,8 @@ class DefaultCartridgeHeader(rom: ByteArray) : CartridgeHeader {
     override val type = types[rom[0x147].toInt()].orEmpty()
     override val name = rom
         .decodeToString(0x134, 0x144)
-        .filterNot { char -> char.code == 0 || char.code == 65533 } // decodeToString will introduce this for terminator 0x80
+        // decodeToString will introduce this for terminator 0x80
+        .filterNot { char -> char.code == 0 || char.code == 65533 }
 }
 
 class EmptyCartridgeHeader : CartridgeHeader {
