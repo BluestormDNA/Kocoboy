@@ -1,6 +1,5 @@
 package io.github.bluestormdna.kocoboy
 
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
@@ -50,16 +49,14 @@ import io.github.bluestormdna.kocoboy.ui.main.MainViewModel
 import io.github.bluestormdna.kocoboy.ui.main.SideBar
 import io.github.bluestormdna.kocoboy.ui.theme.KocoBoyTheme
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
-@Preview
 fun App() {
     val vm = viewModel<MainViewModel>(factory = MainViewModel.factory)
 
     val colorTheme by vm.colorTheme.collectAsState()
     val frameBuffer by vm.frame.collectAsState()
-    //val vps by vm.vps.collectAsState()
+    // val vps by vm.vps.collectAsState()
     val poweredOn by vm.poweredOn.collectAsState()
     val cartridgeHeader by vm.cartridgeHeader.collectAsState()
 
@@ -86,7 +83,7 @@ fun App() {
             Box(
                 Modifier.fillMaxSize().padding(contentPadding),
             ) {
-                //Text(text = vps.toString())
+                // Text(text = vps.toString())
                 var showSettings by rememberSaveable { mutableStateOf(false) }
 
                 Row(

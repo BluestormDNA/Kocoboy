@@ -25,8 +25,8 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -64,8 +64,8 @@ import kocoboy.composeapp.generated.resources.lato_regular
 import kocoboy.composeapp.generated.resources.leaguespartan_regular
 import kocoboy.composeapp.generated.resources.nes_controller
 import kocoboy.composeapp.generated.resources.pretendo
-import org.jetbrains.compose.resources.Font
 import kotlin.jvm.JvmInline
+import org.jetbrains.compose.resources.Font
 
 @Composable
 fun GameBoy(
@@ -78,7 +78,7 @@ fun GameBoy(
         PowerRow()
         ScreenBezel(
             screen = screen,
-            poweredOn = poweredOn
+            poweredOn = poweredOn,
         )
         BrandLabelling()
         GamePad(uiJoyPadEvent)
@@ -89,18 +89,16 @@ fun GameBoy(
 }
 
 @Composable
-fun PowerRow(
-    modifier: Modifier = Modifier.height(IntrinsicSize.Min)
-) {
+fun PowerRow(modifier: Modifier = Modifier.height(IntrinsicSize.Min)) {
     Column(modifier) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = modifier.weight(1f)
+            modifier = modifier.weight(1f),
         ) {
             Box(
                 modifier = Modifier
                     .aspectRatio(1f)
-                    .border(border = BorderStroke(Dp.Hairline, brush = topRowExtrudedShadows))
+                    .border(border = BorderStroke(Dp.Hairline, brush = topRowExtrudedShadows)),
             )
             Spacer(modifier.aspectRatio(1 / 8f))
             BasicText(
@@ -123,7 +121,7 @@ fun PowerRow(
                         color = KocoBoyTheme.colors.accentDark,
                         offset = Offset(1f, 1f),
                         blurRadius = 2f,
-                    )
+                    ),
                 ),
                 autoSize = TextAutoSize.StepBased(minFontSize = 2.sp, stepSize = 1.sp),
                 text = "◀OFF·ON▶",
@@ -132,7 +130,7 @@ fun PowerRow(
             Box(
                 modifier = Modifier
                     .aspectRatio(1f)
-                    .border(border = BorderStroke(Dp.Hairline, brush = topRowExtrudedShadows))
+                    .border(border = BorderStroke(Dp.Hairline, brush = topRowExtrudedShadows)),
             )
         }
         Spacer(modifier = Modifier.aspectRatio(148f / 1f))
@@ -165,17 +163,17 @@ fun ScreenBezel(
             modifier = modifier
                 .matchParentSize()
                 .wrapContentSize(Alignment.TopCenter)
-                .fillMaxHeight(0.06f)
+                .fillMaxHeight(0.06f),
         ) {
             Spacer(modifier = Modifier.fillMaxWidth().weight(1f))
             Spacer(
                 modifier = Modifier.fillMaxWidth().weight(1f)
-                    .background(KocoBoyTheme.colors.bezelTopLine)
+                    .background(KocoBoyTheme.colors.bezelTopLine),
             )
             Spacer(modifier = Modifier.fillMaxWidth().weight(2f))
             Spacer(
                 modifier = Modifier.fillMaxWidth().weight(1f)
-                    .background(KocoBoyTheme.colors.bezelBottomLine)
+                    .background(KocoBoyTheme.colors.bezelBottomLine),
             )
             Spacer(modifier = Modifier.fillMaxWidth().weight(1f))
         }
@@ -198,7 +196,7 @@ fun ScreenBezel(
                 color = KocoBoyTheme.colors.bezelText,
                 textAlign = TextAlign.Center,
             ),
-            autoSize = TextAutoSize.StepBased(minFontSize = 2.sp)
+            autoSize = TextAutoSize.StepBased(minFontSize = 2.sp),
         )
         Box(
             modifier = Modifier
@@ -215,12 +213,12 @@ fun ScreenBezel(
         )
         Column(
             verticalArrangement = Arrangement.aligned(BiasAlignment.Vertical(-0.14f)),
-            modifier = Modifier.fillMaxHeight()
+            modifier = Modifier.fillMaxHeight(),
         ) {
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth(0.035f)
-                    .align(BiasAlignment.Horizontal(-0.4f))
+                    .align(BiasAlignment.Horizontal(-0.4f)),
             ) {
                 drawCircle(ledColor, size.width / 2)
             }
@@ -235,16 +233,14 @@ fun ScreenBezel(
                     lineHeightStyle = LineHeightStyle.Default,
                     color = KocoBoyTheme.colors.bezelText,
                 ),
-                autoSize = TextAutoSize.StepBased(minFontSize = 2.sp)
+                autoSize = TextAutoSize.StepBased(minFontSize = 2.sp),
             )
         }
     }
 }
 
 @Composable
-fun BrandLabelling(
-    modifier: Modifier = Modifier
-) {
+fun BrandLabelling(modifier: Modifier = Modifier) {
     Row {
         BasicText(
             modifier = modifier.alignByBaseline()
@@ -263,7 +259,7 @@ fun BrandLabelling(
             style = TextStyle(
                 fontFamily = LatoRegular(),
                 fontStyle = FontStyle.Italic,
-                color = KocoBoyTheme.colors.bodyText
+                color = KocoBoyTheme.colors.bodyText,
             ),
             autoSize = TextAutoSize.StepBased(minFontSize = 2.sp),
         )
@@ -279,10 +275,7 @@ fun BrandLabelling(
 }
 
 @Composable
-fun GamePad(
-    uiJoyPadEvent: (UiJoyPadEvent) -> Unit = {},
-    modifier: Modifier = Modifier,
-) {
+fun GamePad(uiJoyPadEvent: (UiJoyPadEvent) -> Unit = {}, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -293,16 +286,13 @@ fun GamePad(
 }
 
 @Composable
-fun MainButtons(
-    uiJoyPadEvent: (UiJoyPadEvent) -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun MainButtons(uiJoyPadEvent: (UiJoyPadEvent) -> Unit, modifier: Modifier = Modifier) {
     val buttonColor by animateColorAsState(targetValue = KocoBoyTheme.colors.mainButtons)
 
     Column(
         modifier
             .rotate(-25f)
-            .aspectRatio(1.12f)
+            .aspectRatio(1.12f),
     ) {
         Spacer(Modifier.weight(1f))
         Row(
@@ -328,7 +318,7 @@ fun MainButtons(
                     .fillMaxHeight()
                     .clip(CircleShape)
                     .drawBehind { drawRect(buttonColor) }
-                    .background(mainButtonShadow)
+                    .background(mainButtonShadow),
             )
             Spacer(modifier.weight(0.5f))
             Spacer(
@@ -342,12 +332,12 @@ fun MainButtons(
                     .fillMaxHeight()
                     .clip(CircleShape)
                     .drawBehind { drawRect(buttonColor) }
-                    .background(mainButtonShadow)
+                    .background(mainButtonShadow),
             )
         }
         Row(
             modifier = Modifier.weight(2f),
-            verticalAlignment = BiasAlignment.Vertical(-0.7f)
+            verticalAlignment = BiasAlignment.Vertical(-0.7f),
         ) {
             BasicText(
                 text = "B",
@@ -390,7 +380,7 @@ fun Triangle(
     Canvas(
         modifier = modifier
             .aspectRatio(1f)
-            .shadow(1.dp, spotColor = shadowColor)
+            .shadow(1.dp, spotColor = shadowColor),
     ) {
         val rect = Rect(Offset.Zero, size)
         val trianglePath = Path().apply {
@@ -406,10 +396,7 @@ fun Triangle(
 }
 
 @Composable
-fun Pad(
-    uiJoyPadEvent: (UiJoyPadEvent) -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun Pad(uiJoyPadEvent: (UiJoyPadEvent) -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .aspectRatio(1f)
@@ -419,36 +406,36 @@ fun Pad(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxSize(0.95f)
+                .fillMaxSize(0.95f),
         ) {
             Triangle(
                 orientation = 0f,
                 modifier = modifier
                     .fillMaxSize(0.05f)
-                    .align(Alignment.TopCenter)
+                    .align(Alignment.TopCenter),
             )
             Triangle(
                 orientation = 90f,
                 modifier = modifier
                     .fillMaxSize(0.05f)
-                    .align(Alignment.CenterEnd)
+                    .align(Alignment.CenterEnd),
             )
             Triangle(
                 orientation = 180f,
                 modifier = modifier
                     .fillMaxSize(0.05f)
-                    .align(Alignment.BottomCenter)
+                    .align(Alignment.BottomCenter),
             )
             Triangle(
                 orientation = 270f,
                 modifier = modifier
                     .fillMaxSize(0.05f)
-                    .align(Alignment.CenterStart)
+                    .align(Alignment.CenterStart),
             )
         }
         // Actual PAD
         Box(
-            modifier.fillMaxSize(0.8f)
+            modifier.fillMaxSize(0.8f),
         ) {
             Column(
                 modifier = Modifier
@@ -462,7 +449,7 @@ fun Pad(
                     .detectInput(
                         onPress = { uiJoyPadEvent(KeyDown(JoypadInputs.UP)) },
                         onRelease = { uiJoyPadEvent(KeyUp(JoypadInputs.UP)) },
-                    )
+                    ),
             ) {
                 PadHorizontalGrip()
             }
@@ -478,7 +465,7 @@ fun Pad(
                     .detectInput(
                         onPress = { uiJoyPadEvent(KeyDown(JoypadInputs.RIGHT)) },
                         onRelease = { uiJoyPadEvent(KeyUp(JoypadInputs.RIGHT)) },
-                    )
+                    ),
             ) {
                 PadVerticalGrip()
             }
@@ -494,7 +481,7 @@ fun Pad(
                     .detectInput(
                         onPress = { uiJoyPadEvent(KeyDown(JoypadInputs.DOWN)) },
                         onRelease = { uiJoyPadEvent(KeyUp(JoypadInputs.DOWN)) },
-                    )
+                    ),
             ) {
                 PadHorizontalGrip()
             }
@@ -510,7 +497,7 @@ fun Pad(
                     .detectInput(
                         onPress = { uiJoyPadEvent(KeyDown(JoypadInputs.LEFT)) },
                         onRelease = { uiJoyPadEvent(KeyUp(JoypadInputs.LEFT)) },
-                    )
+                    ),
             ) {
                 PadVerticalGrip()
             }
@@ -518,7 +505,7 @@ fun Pad(
                 modifier = Modifier
                     .background(Color.Black)
                     .fillMaxSize(0.3f)
-                    .align(Alignment.Center)
+                    .align(Alignment.Center),
             ) {
                 Canvas(modifier = modifier.fillMaxSize()) {
                     drawCircle(padCircleCenterConcaveShadow, size.minDimension / 2.5f)
@@ -559,10 +546,7 @@ fun RowScope.PadVerticalGrip() {
 }
 
 @Composable
-fun SelectStart(
-    uiJoyPadEvent: (UiJoyPadEvent) -> Unit = {},
-    modifier: Modifier = Modifier,
-) {
+fun SelectStart(uiJoyPadEvent: (UiJoyPadEvent) -> Unit = {}, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -585,10 +569,7 @@ fun SelectStart(
 }
 
 @Composable
-fun RubberButton(
-    text: String,
-    modifier: Modifier,
-) {
+fun RubberButton(text: String, modifier: Modifier) {
     val buttonColor by animateColorAsState(KocoBoyTheme.colors.rubberButtons)
 
     Column(
@@ -618,7 +599,7 @@ fun RubberButton(
                     .fillMaxHeight(0.85f)
                     .clip(CircleShape)
                     .drawBehind { drawRect(buttonColor) }
-                    .background(rubberShadow)
+                    .background(rubberShadow),
             )
         }
         BasicText(
@@ -639,9 +620,7 @@ fun RubberButton(
 }
 
 @Composable
-fun Speaker(
-    modifier: Modifier = Modifier,
-) {
+fun Speaker(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.rotate(-29f),
         contentAlignment = Alignment.Center,
@@ -652,13 +631,13 @@ fun Speaker(
                 .wrapContentSize(Alignment.BottomCenter)
                 .fillMaxHeight(0.62f)
                 .fillMaxWidth()
-                .background(KocoBoyTheme.colors.bodyBottomRightCornerShadow)
+                .background(KocoBoyTheme.colors.bodyBottomRightCornerShadow),
         )
         Row(
             Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth(0.65f)
-                .fillMaxHeight(0.5f)
+                .fillMaxHeight(0.5f),
         ) {
             SpeakerGridLine(dummy = true)
             SpeakerGridLine()
@@ -668,7 +647,6 @@ fun Speaker(
             SpeakerGridLine()
         }
     }
-
 }
 
 @Composable
@@ -680,7 +658,7 @@ fun RowScope.SpeakerGridLine(dummy: Boolean = false) {
             .fillMaxWidth(0.3f)
             .clip(CircleShape)
             .background(horizontalSpeakerGridShadow)
-            .background(verticalSpeakerGridShadow)
+            .background(verticalSpeakerGridShadow),
     ) {
         if (dummy) return
         Spacer(
@@ -688,15 +666,13 @@ fun RowScope.SpeakerGridLine(dummy: Boolean = false) {
                 .wrapContentSize()
                 .fillMaxHeight(0.7f)
                 .fillMaxWidth(0.2f)
-                .background(KocoBoyTheme.colors.internalDark)
+                .background(KocoBoyTheme.colors.internalDark),
         )
     }
 }
 
 @Composable
-fun HeadPhoneJack(
-    modifier: Modifier = Modifier.height(IntrinsicSize.Min)
-) {
+fun HeadPhoneJack(modifier: Modifier = Modifier.height(IntrinsicSize.Min)) {
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -716,7 +692,7 @@ fun HeadPhoneJack(
                     color = KocoBoyTheme.colors.accentDark,
                     offset = Offset(1f, 1f),
                     blurRadius = 2f,
-                )
+                ),
             ),
             autoSize = TextAutoSize.StepBased(minFontSize = 2.sp),
             text = "⠀PHONES⠀",
@@ -724,21 +700,20 @@ fun HeadPhoneJack(
     }
 }
 
-infix fun Int.percentOf(value: Int): Int {
-    return if (this == 0) 0
-    else (value * this.toFloat() / 100).toInt()
+infix fun Int.percentOf(value: Int): Int = if (this == 0) {
+    0
+} else {
+    (value * this.toFloat() / 100).toInt()
 }
 
-infix fun Float.percentOf(value: Int): Int {
-    return if (this == 0f) 0
-    else (value * this / 100).toInt()
+infix fun Float.percentOf(value: Int): Int = if (this == 0f) {
+    0
+} else {
+    (value * this / 100).toInt()
 }
 
 @Composable
-fun GameBoyLayout(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
+fun GameBoyLayout(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val bodyColor by animateColorAsState(targetValue = KocoBoyTheme.colors.body)
 
     Layout(
@@ -779,15 +754,15 @@ fun GameBoyLayout(
             constraints.copy(
                 minHeight = powerRowHeight,
                 maxHeight = powerRowHeight,
-            )
+            ),
         )
         val screen = measurables[1].measure(
             constraints.copy(
                 minHeight = screenHeight,
                 maxHeight = screenHeight,
                 minWidth = constraints.minWidth - spacingDefault * 2,
-                maxWidth = constraints.maxWidth - spacingDefault * 2
-            )
+                maxWidth = constraints.maxWidth - spacingDefault * 2,
+            ),
         )
 
         val labelling = measurables[2].measure(
@@ -796,25 +771,25 @@ fun GameBoyLayout(
                 maxHeight = labellingHeight,
                 minWidth = constraints.minWidth - spacingDefault * 2,
                 maxWidth = constraints.maxWidth - spacingDefault * 2,
-            )
+            ),
         )
 
         val gamePad = measurables[3].measure(
             constraints.copy(
                 minHeight = padHeight,
                 maxHeight = padHeight,
-                minWidth = constraints.minWidth - (spacingPadLeft + spacingMainButtonsRight),
-                maxWidth = constraints.maxWidth - (spacingPadLeft + spacingMainButtonsRight),
-            )
+                minWidth = constraints.minWidth - spacingPadLeft + spacingMainButtonsRight,
+                maxWidth = constraints.maxWidth - spacingPadLeft + spacingMainButtonsRight,
+            ),
         )
 
         val selectStart = measurables[4].measure(
             constraints.copy(
                 minHeight = selectStartHeight,
                 maxHeight = selectStartHeight,
-                minWidth = constraints.minWidth - (spacingSelectStartLeft + spacingSelectStartRight),
-                maxWidth = constraints.maxWidth - (spacingSelectStartLeft + spacingSelectStartRight),
-            )
+                minWidth = constraints.minWidth - spacingSelectStartLeft + spacingSelectStartRight,
+                maxWidth = constraints.maxWidth - spacingSelectStartLeft + spacingSelectStartRight,
+            ),
         )
 
         val speaker = measurables[5].measure(
@@ -823,9 +798,8 @@ fun GameBoyLayout(
                 maxHeight = speakerHeight,
                 minWidth = speakerWidth,
                 maxWidth = speakerWidth,
-            )
+            ),
         )
-
 
         val headphoneJack = measurables[6].measure(
             constraints.copy(
@@ -833,7 +807,7 @@ fun GameBoyLayout(
                 maxHeight = headPhoneJackHeight,
                 minWidth = headPhoneJackWidth,
                 maxWidth = headPhoneJackWidth,
-            )
+            ),
         )
 
         layout(
@@ -876,7 +850,7 @@ val dropShadow = Brush.sweepGradient(
         Color.LightGray,
         Color.DarkGray,
         Color(0xFFA8A29F),
-    )
+    ),
 )
 
 val concaveShadow = Brush.verticalGradient(
@@ -887,39 +861,39 @@ val concaveShadow = Brush.verticalGradient(
 
 val rubberShadow = Brush.verticalGradient(
     0f to Color(0x80C0BCD7),
-    100f to Color(0x80727075)
+    100f to Color(0x80727075),
 )
 
 val mainButtonShadow = Brush.verticalGradient(
     0f to Color(0x20FFFFFF),
-    100f to Color(0x40000000)
+    100f to Color(0x40000000),
 )
 
 val horizontalSpeakerGridShadow = Brush.horizontalGradient(
     0f to Color(0x80727075),
     0.3f to Color(0x80C0BCD7),
-    1f to Color(0x80727075)
+    1f to Color(0x80727075),
 )
 
 val verticalSpeakerGridShadow = Brush.verticalGradient(
     0f to Color(0x80727075),
     0.1f to Color(0x20C0BCD7),
     0.9f to Color(0x20C0BCD7),
-    1f to Color(0x80727075)
+    1f to Color(0x80727075),
 )
 
 val verticalBodyShadow = Brush.verticalGradient(
     0f to Color(0x90F0F0F0),
     0.01f to Color.Transparent,
     0.98f to Color.Transparent,
-    1f to Color(0x90727075)
+    1f to Color(0x90727075),
 )
 
 val horizontalBodyShadow = Brush.horizontalGradient(
     0f to Color(0x90727075),
     0.02f to Color.Transparent,
     0.98f to Color.Transparent,
-    1f to Color(0x90727075)
+    1f to Color(0x90727075),
 )
 
 val topRowExtrudedShadows = Brush.verticalGradient(
@@ -932,14 +906,14 @@ val horizontalScreenShadow = Brush.horizontalGradient(
     0f to Color(0x90000000),
     0.03f to Color.Transparent,
     0.98f to Color.Transparent,
-    1f to Color(0x90727075)
+    1f to Color(0x90727075),
 )
 
 val verticalScreenShadow = Brush.verticalGradient(
     0f to Color(0x90000000),
     0.03f to Color.Transparent,
     0.98f to Color.Transparent,
-    1f to Color(0x90727075)
+    1f to Color(0x90727075),
 )
 
 val padCircleCenterConcaveShadow = Brush.sweepGradient(
@@ -953,7 +927,7 @@ val padCircleCenterConcaveShadow = Brush.sweepGradient(
         Color.White,
         Color.Black,
         Color.Black,
-    )
+    ),
 )
 
 sealed interface UiJoyPadEvent
@@ -964,10 +938,7 @@ value class KeyDown(val key: JoypadInputs) : UiJoyPadEvent
 @JvmInline
 value class KeyUp(val key: JoypadInputs) : UiJoyPadEvent
 
-fun Modifier.detectInput(
-    onPress: () -> Unit,
-    onRelease: () -> Unit
-) = this.pointerInput(Unit) {
+fun Modifier.detectInput(onPress: () -> Unit, onRelease: () -> Unit) = this.pointerInput(Unit) {
     detectTapGestures(
         onPress = {
             try {
@@ -979,4 +950,3 @@ fun Modifier.detectInput(
         },
     )
 }
-

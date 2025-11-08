@@ -23,14 +23,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class MainViewModel(
-    private val platformAudioPlayer: AudioPlayer
-) : ViewModel() {
+class MainViewModel(private val platformAudioPlayer: AudioPlayer) : ViewModel() {
 
     private val _colorTheme = MutableStateFlow<ColorTheme>(ClassicColorTheme)
     val colorTheme = _colorTheme.asStateFlow()
 
     private val _screenTheme = MutableStateFlow<ScreenTheme>(ClassicScreenTheme)
+    val screenTheme = _screenTheme.asStateFlow()
 
     private var currentFrameCounter = 0
 
@@ -90,7 +89,7 @@ class MainViewModel(
         val factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 MainViewModel(
-                    platformAudioPlayer = platformAudioPlayer()
+                    platformAudioPlayer = platformAudioPlayer(),
                 )
             }
         }
@@ -98,5 +97,4 @@ class MainViewModel(
         const val SCREEN_WIDTH = 160
         const val SCREEN_HEIGHT = 144
     }
-
 }

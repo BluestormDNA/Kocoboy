@@ -3,7 +3,6 @@ package io.github.bluestormdna.kocoboy.core
 import io.github.bluestormdna.kocoboy.host.Host
 import kotlin.experimental.or
 
-
 class APU(private val host: Host) {
     private val bufferSize = 4096
     private var bufferPointer = 0
@@ -89,7 +88,7 @@ class APU(private val host: Host) {
             val mixedL = ch1LSample + ch2LSample + ch3LSample + ch4LSample + 128
             val mixedR = ch1RSample + ch2RSample + ch3RSample + ch4RSample + 128
 
-            //todo handle Main Volume
+            // todo handle Main Volume
             sampleBuffer[bufferPointer++] = mixedL.toByte()
             sampleBuffer[bufferPointer++] = mixedR.toByte()
 

@@ -65,9 +65,7 @@ class ThemeProvider : PreviewParameterProvider<ColorTheme> {
 
 @Preview
 @Composable
-fun GameBoyPlayItLoudPreview(
-    @PreviewParameter(ThemeProvider::class) theme: ColorTheme
-) {
+fun GameBoyPlayItLoudPreview(@PreviewParameter(ThemeProvider::class) theme: ColorTheme) {
     KocoBoyTheme(theme) {
         GameBoy()
     }
@@ -114,6 +112,3 @@ fun SpeakerPreview() {
 fun HeadPhoneJackPreview() {
     HeadPhoneJack()
 }
-
-
-

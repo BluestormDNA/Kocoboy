@@ -14,7 +14,7 @@ class JvmAudioPlayer : AudioPlayer {
         8, // 8-bit audio
         2, // Stereo
         false, // Signed
-        false // Little-endian
+        false, // Little-endian
     )
 
     private val info = DataLine.Info(SourceDataLine::class.java, format)

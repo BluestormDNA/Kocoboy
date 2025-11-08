@@ -18,17 +18,17 @@ class AndroidAudioPlayer : AudioPlayer {
             AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build()
+                .build(),
         )
         .setAudioFormat(
             AudioFormat.Builder()
                 .setEncoding(encoding)
                 .setSampleRate(sampleRate)
                 .setChannelMask(channelMask)
-                .build()
+                .build(),
         )
         .setBufferSizeInBytes(
-            AudioTrack.getMinBufferSize(sampleRate, channelMask, encoding)
+            AudioTrack.getMinBufferSize(sampleRate, channelMask, encoding),
         )
         .setTransferMode(AudioTrack.MODE_STREAM)
         .build()

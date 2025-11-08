@@ -16,7 +16,7 @@ class Bus(
     private val bootRoom = ByteArray(0x100)
     private var cartridge: Cartridge = EmptySlot()
 
-    //DMG Memory Map
+    // DMG Memory Map
     private val vRam = ByteArray(0x2000)
     private val wRam0 = ByteArray(0x1000)
     private val wRam1 = ByteArray(0x1000)
@@ -82,8 +82,8 @@ class Bus(
     }
 
     private fun initializeRegisters() {
-        //FF4D - KEY1 - CGB Mode Only - Prepare Speed Switch
-        //HardCoded to FF to identify DMG as 00 is GBC
+        // FF4D - KEY1 - CGB Mode Only - Prepare Speed Switch
+        // HardCoded to FF to identify DMG as 00 is GBC
         io[0x4D] = 0xFF.toByte()
 
         ppu.write(0x40, 0x91.toByte(), this)
@@ -117,13 +117,13 @@ class Bus(
         // or go full signed with masking
         val address = addr.toUShort()
         return when (addr) {
-            //in 0x0000..0x3FFF -> {
+            // in 0x0000..0x3FFF -> {
             //    if (onBootRom && address < 0x100u) {
             //        bootRoom[addr].toInt() and 0xFF
             //    } else {
             //        cartridge.readLoROM(address).toInt() and 0xFF
             //    }
-            //}
+            // }
             in 0x0000..0x3FFF -> cartridge.readLoROM(address).toInt() and 0xFF
             in 0x4000..0x7FFF -> cartridge.readHiROM(address).toInt() and 0xFF
             in 0x8000..0x9FFF -> vRam[addr and 0x1FFF].toInt() and 0xFF
@@ -135,7 +135,7 @@ class Bus(
             in 0xFE00..0xFE9F -> oam[addr and 0xFF].toInt() and 0xFF
             in 0xFEA0..0xFEFF -> 0x00 // Not usable
             in 0xFF00..0xFF7F -> {
-                when(val ioAddress = addr and 0x7F) {
+                when (val ioAddress = addr and 0x7F) {
                     0x00 -> joypad.read().toInt() and 0xFF
                     in 0x03..0x07 -> timer.read(ioAddress).toInt() and 0xFF
                     in 0x10..0x3F -> apu.read(ioAddress).toInt() and 0xFF
@@ -163,36 +163,35 @@ class Bus(
             in 0xFE00..0xFE9F -> oam[addr and 0xFF] = value.toByte()
             in 0xFEA0..0xFEFF -> Unit // Not usable
             in 0xFF00..0xFF7F -> { // IO
-                when(val ioAddress = addr and 0x7F) {
+                when (val ioAddress = addr and 0x7F) {
                     0x00 -> joypad.write(value.toByte())
                     0x02 -> handleSerialLink(value)
                     0x0F -> io[ioAddress] = (value or 0xE0).toByte() // todo use interrupt field
                     in 0x03..0x07 -> timer.write(ioAddress, value.toByte())
                     in 0x10..0x3F -> apu.write(ioAddress, value.toByte())
-                    in 0x40..0x4B -> ppu.write(ioAddress, value.toByte(), this) // Lyc can cause interrupts on write
+                    // Lyc can cause interrupts on write
+                    in 0x40..0x4B -> ppu.write(ioAddress, value.toByte(), this)
                     else -> io[ioAddress] = value.toByte()
                 }
             }
 
             in 0xFF80..0xFFFF -> hRam[addr and 0x7F] = value.toByte()
-            else -> throw IllegalStateException("Attempting to write ${byte.toHexString()} to ${addr.toHexString()}")
+            else -> throw IllegalStateException(
+                "Attempting to write ${byte.toHexString()} to ${addr.toHexString()}",
+            )
         }
     }
 
     private fun handleSerialLink(value: Int) {
-        //Temp Serial Link output for debug
+        // Temp Serial Link output for debug
         if (value == 0x81) {
             print(readByte(0xFF01).toChar())
         }
     }
 
-    fun readOAM(addr: Int): Int {
-        return oam[addr].toInt() and 0xFF
-    }
+    fun readOAM(addr: Int): Int = oam[addr].toInt() and 0xFF
 
-    fun readVRAM(addr: Int): Int {
-        return vRam[addr and 0x1FFF].toInt() and 0xFF
-    }
+    fun readVRAM(addr: Int): Int = vRam[addr and 0x1FFF].toInt() and 0xFF
 
     fun handleDma(value: Byte): Int {
         val addr = (value.toInt() and 0xFF) shl 8
@@ -224,6 +223,4 @@ class Bus(
         io.fill(0)
         hRam.fill(0)
     }
-
-
 }

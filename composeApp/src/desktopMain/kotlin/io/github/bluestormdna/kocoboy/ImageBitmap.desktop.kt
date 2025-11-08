@@ -2,18 +2,14 @@ package io.github.bluestormdna.kocoboy
 
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asComposeImageBitmap
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ColorType
 import org.jetbrains.skia.ImageInfo
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
-actual fun createImageBitmapFromIntArray(
-    intArray: IntArray,
-    width: Int,
-    height: Int
-): ImageBitmap {
+actual fun createImageBitmapFromIntArray(intArray: IntArray, width: Int, height: Int): ImageBitmap {
     val screenImageInfo = ImageInfo(160, 144, ColorType.N32, alphaType = ColorAlphaType.OPAQUE)
 
     val byteArray = intArray.toByteArray()

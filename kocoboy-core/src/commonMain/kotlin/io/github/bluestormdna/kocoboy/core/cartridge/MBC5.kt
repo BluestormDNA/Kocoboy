@@ -1,8 +1,7 @@
 package io.github.bluestormdna.kocoboy.core.cartridge
 
-
 @OptIn(ExperimentalUnsignedTypes::class)
-class MBC5(private val rom: UByteArray): Cartridge {
+class MBC5(private val rom: UByteArray) : Cartridge {
 
     private val eRam = UByteArray(0x20000)
 
@@ -11,9 +10,7 @@ class MBC5(private val rom: UByteArray): Cartridge {
     private var romBankLo = 1
     private var ramBank = 0
 
-    override fun readLoROM(addr: UShort): UByte {
-        return rom[addr.toInt()]
-    }
+    override fun readLoROM(addr: UShort): UByte = rom[addr.toInt()]
 
     override fun readHiROM(addr: UShort): UByte {
         // Do any MBC5 game actually use Hi?
@@ -29,12 +26,10 @@ class MBC5(private val rom: UByteArray): Cartridge {
         }
     }
 
-    override fun readERAM(addr: UShort): UByte {
-        return if (eRamEnabled) {
-            eRam[(ERAM_OFFSET * ramBank + (addr and 0x1FFFu).toInt())]
-        } else {
-            0xFFu
-        }
+    override fun readERAM(addr: UShort): UByte = if (eRamEnabled) {
+        eRam[(ERAM_OFFSET * ramBank + (addr and 0x1FFFu).toInt())]
+    } else {
+        0xFFu
     }
 
     override fun writeERAM(addr: UShort, value: UByte) {

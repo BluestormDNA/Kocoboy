@@ -5,7 +5,6 @@ package io.github.bluestormdna.kocoboy
 import org.khronos.webgl.Float32Array
 import org.khronos.webgl.set
 
-
 actual fun platformAudioPlayer(): AudioPlayer = WebAudioPlayer()
 
 class WebAudioPlayer : AudioPlayer {
@@ -32,7 +31,7 @@ external class AudioContext {
     fun createBuffer(
         channel: Int = definedExternally,
         size: Int = definedExternally,
-        sampleRate: Int = definedExternally
+        sampleRate: Int = definedExternally,
     ): AudioBuffer
 
     fun createBufferSource(): AudioBufferSourceNode
@@ -42,7 +41,7 @@ open external class AudioNode {
     fun connect(
         destination: AudioNode,
         output: Int = definedExternally,
-        input: Int = definedExternally
+        input: Int = definedExternally,
     ): AudioNode
 }
 
@@ -64,4 +63,3 @@ fun ByteArray.toFloat32Array(): Pair<Float32Array, Float32Array> {
     }
     return l to r
 }
-

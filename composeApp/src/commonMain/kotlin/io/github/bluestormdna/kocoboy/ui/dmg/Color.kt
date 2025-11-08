@@ -27,4 +27,3 @@ val GreenBody = Color(0xFF289969)
 val BlackBody = Color(0xFF0A0A0A)
 val WhiteBody = Color(0xFFEBEBEB)
 val DarkGrayComponent = Color(0xFF101010)
-

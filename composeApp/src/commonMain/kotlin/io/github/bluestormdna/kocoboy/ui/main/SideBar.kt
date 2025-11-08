@@ -59,7 +59,7 @@ fun SideBar(
                 .background(ClassicGrayBody)
                 .padding(8.dp)
                 .padding(end = 64.dp)
-                .fillMaxWidth()
+                .fillMaxWidth(),
         )
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -75,18 +75,19 @@ fun SideBar(
             }
         }
         Column(
-            modifier = Modifier.padding(8.dp)
+            modifier = Modifier.padding(8.dp),
         ) {
             Text(cartridgeHeader.name)
             Text(cartridgeHeader.type)
         }
         LazyColumn(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             items(
                 items = if (showThemeList) themeList else emptyList(),
-                key = { theme -> theme.body.value.toLong() }) { theme ->
+                key = { theme -> theme.body.value.toLong() },
+            ) { theme ->
                 CompositionLocalProvider(LocalColorTheme provides theme) {
                     Box(
                         modifier = Modifier
@@ -94,15 +95,14 @@ fun SideBar(
                             .border(1.dp, color = theme.body, RoundedCornerShape(10.dp))
                             .clickable { onThemeChange(theme) }
                             .padding(32.dp)
-                            .animateItem()
+                            .animateItem(),
                     ) {
                         GameBoy(
-                            modifier = Modifier.shadow(8.dp, UnitShape)
+                            modifier = Modifier.shadow(8.dp, UnitShape),
                         )
                     }
                 }
             }
         }
-
     }
 }
