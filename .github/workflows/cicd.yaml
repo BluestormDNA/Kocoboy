@@ -60,13 +60,13 @@ jobs:
 
       - name: Zip Wasm
         working-directory: composeApp/build/dist/wasmJs/productionExecutable
-        run: zip -r wasmJs.zip .
+        run: zip -r kocoboy-wasm.zip .
 
       - name: Upload Wasm Zip Artifact
         uses: actions/upload-artifact@v4
         with:
           name: wasm-build
-          path: composeApp/build/dist/wasmJs/productionExecutable/wasmJs.zip
+          path: composeApp/build/dist/wasmJs/productionExecutable/kocoboy-wasm.zip
           if-no-files-found: error
 
       - name: Upload pages artifact
@@ -145,7 +145,7 @@ jobs:
           title: "Latest Release"
           files: |
             android-apk/composeApp-release.apk
-            wasm-build/wasmJs.zip
+            wasm-build/kocoboy-wasm.zip
             kocoboy-windows-latest.msi/*
             kocoboy-macos-latest.dmg/*
             kocoboy-ubuntu-latest.deb/*
