@@ -80,10 +80,6 @@ This is nowhere a full list of issues just some of them from a high view perspec
 Yes you can, but you shouldn't. There are a lot of other more capable emulators out there.  
 This is just a personal project to play with Kotlin Multiplatform / Compose Multiplatform
 
-- Why are the previews of composables on androidMain instead of commonMain?
-
-Because @Preview annotations on Android Studio only works there.
-
 - Why parts of the core code use unsigned while others use signed masking?
 
 Never been a fan of Kotlin approach to unsigned. When you add limited infix bitwise operators to the mix you end on quite messy code.  
