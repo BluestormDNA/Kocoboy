@@ -39,17 +39,16 @@ kotlin {
         val desktopMain by getting
 
         androidMain.dependencies {
-            implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
         }
         commonMain.dependencies {
             implementation(project(":kocoboy-core"))
-            implementation(compose.runtime)
-            implementation(compose.foundation)
-            implementation(compose.material3)
-            implementation(compose.ui)
-            implementation(compose.components.resources)
-            implementation(compose.components.uiToolingPreview)
+            implementation("org.jetbrains.compose.runtime:runtime:1.10.0-beta01")
+            implementation("org.jetbrains.compose.foundation:foundation:1.10.0-beta01")
+            implementation("org.jetbrains.compose.material3:material3:1.9.0")
+            implementation("org.jetbrains.compose.ui:ui:1.10.0-beta01")
+            implementation("org.jetbrains.compose.components:components-resources:1.10.0-beta01")
+            implementation("org.jetbrains.compose.ui:ui-tooling-preview:1.10.0-beta01")
             implementation(libs.filekit.compose)
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtime.compose)
@@ -95,7 +94,7 @@ android {
 }
 
 dependencies {
-    debugImplementation(compose.uiTooling)
+    debugImplementation("org.jetbrains.compose.ui:ui-tooling:1.10.0-beta01")
 }
 
 compose.desktop {
