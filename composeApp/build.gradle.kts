@@ -100,8 +100,15 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "io.github.bluestormdna.kocoboy"
-            packageVersion = "1.0.0"
+            packageName = System.getProperty("os.name").let { os ->
+                when {
+                    os.startsWith("Windows") -> "kocoboy-windows"
+                    os.startsWith("Mac") -> "kocoboy-macos"
+                    os.startsWith("Linux") -> "kocoboy-linux"
+                    else -> throw IllegalStateException("Unsupported desktop OS: $os")
+                }
+            }
+            packageVersion = "0.1.0"
         }
     }
 }
