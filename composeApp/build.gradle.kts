@@ -1,4 +1,3 @@
-
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -40,17 +39,7 @@ kotlin {
             implementation(libs.androidx.activity.compose)
         }
         commonMain.dependencies {
-            implementation(project(":kocoboy-core"))
-            implementation(libs.compose.runtime)
-            implementation(libs.compose.foundation)
-            implementation(libs.compose.ui)
-            implementation(libs.compose.material3)
-            implementation(libs.compose.resources)
-            implementation(libs.compose.preview)
-            implementation(libs.filekit.compose)
-            implementation(libs.androidx.lifecycle.viewmodel)
-            implementation(libs.androidx.lifecycle.runtime.compose)
-            implementation(libs.compose.material.icons.core)
+            implementation(project(":kocoboy-ui"))
         }
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)

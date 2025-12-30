@@ -165,11 +165,21 @@ class Emulator(
         cpu.updateIme()
     }
 
+    private fun handleInterrupts2() {
+        val interrupts = bus.interruptFlags.toInt() and bus.interruptEnabled.toInt()
+        val interrupt = interrupts.countTrailingZeroBits()
+        if (interrupt != 0) {
+            cpu.handleInterrupt(interrupt)
+        }
+        cpu.updateIme()
+    }
+
     fun powerSwitch() {
         if (internalPowerSwitch) {
             powerOff()
         } else {
-            powerOn()
+            //powerOn()
+            runUncapped()
         }
     }
 }

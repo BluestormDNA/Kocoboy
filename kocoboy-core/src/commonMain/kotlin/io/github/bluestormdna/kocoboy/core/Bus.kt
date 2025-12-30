@@ -206,6 +206,11 @@ class Bus(
         io[0x0F] = interruptFlags and ((1 shl b).inv()).toByte()
     }
 
+    fun clearInterrupt2(interrupt: Int) {
+        val interruptFlags = io[0x0F]
+        io[0x0F] = interruptFlags and (interrupt.inv()).toByte()
+    }
+
     fun requestInterrupt(interrupt: Byte) {
         io[0x0F] = io[0x0F] or interrupt
     }

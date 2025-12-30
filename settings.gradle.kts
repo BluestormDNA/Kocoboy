@@ -33,3 +33,4 @@ dependencyResolutionManagement {
 
 include(":composeApp")
 include(":kocoboy-core")
+include(":kocoboy-ui")
