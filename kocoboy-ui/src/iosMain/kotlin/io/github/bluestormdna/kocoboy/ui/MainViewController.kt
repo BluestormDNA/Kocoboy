@@ -1,4 +1,4 @@
-package io.github.bluestormdna.kocoboy
+package io.github.bluestormdna.kocoboy.ui
 
 import androidx.compose.ui.window.ComposeUIViewController
 

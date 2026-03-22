@@ -31,6 +31,8 @@ dependencyResolutionManagement {
     }
 }
 
-include(":composeApp")
+include(":androidApp")
+include(":desktopApp")
+include(":webApp")
 include(":kocoboy-core")
 include(":kocoboy-ui")

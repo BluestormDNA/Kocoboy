@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalWasmJsInterop::class)
 
-package io.github.bluestormdna.kocoboy
+package io.github.bluestormdna.kocoboy.ui
 
 import org.khronos.webgl.Float32Array
 import org.khronos.webgl.set
