@@ -1,18 +1,18 @@
 [versions]
-agp = "9.1.0"
+agp = "8.13.0"
 android-compileSdk = "36"
 android-minSdk = "26"
 android-targetSdk = "36"
-androidx-activityCompose = "1.13.0"
-androidx-lifecycle = "2.10.0"
-compose-multiplatform = "1.10.3"
+androidx-activityCompose = "1.11.0"
+androidx-lifecycle = "2.9.5"
+compose-multiplatform = "1.10.0-beta01"
 compose-multiplatform-material3 = "1.9.0"
-filekit = "0.13.0"
-kotlin = "2.3.20"
+filekit = "0.12.0"
+kotlin = "2.2.21"
 kotlinx-coroutines = "1.10.2"
 kotlinxDatetime = "0.7.1"
 materialIconsCore = "1.7.3"
-spotless = "8.4.0"
+spotless = "8.0.0"
 
 [libraries]
 filekit-compose = { module = "io.github.vinceglb:filekit-dialogs-compose", version.ref = "filekit" }
