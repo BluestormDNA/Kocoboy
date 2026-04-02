@@ -22,5 +22,11 @@ compose.desktop {
             windows { packageName = "kocoboy-windows" }
             linux { packageName = "kocoboy-linux" }
         }
+
+        buildTypes.release.proguard {
+            version.set("7.9.0")
+            optimize.set(true)
+            obfuscate.set(false)
+        }
     }
 }
