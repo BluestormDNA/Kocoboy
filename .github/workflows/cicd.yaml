@@ -50,16 +50,16 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build Android APK (Release)
-        run: ./gradlew :composeApp:assembleRelease
+        run: ./gradlew :androidApp:assembleRelease
 
       - name: Rename APK
-        run: mv composeApp/build/outputs/apk/release/composeApp-release.apk composeApp/build/outputs/apk/release/kocoboy-android.apk
+        run: mv androidApp/build/outputs/apk/release/androidApp-release.apk androidApp/build/outputs/apk/release/kocoboy-android.apk
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: composeApp/build/outputs/apk/release/kocoboy-android.apk
+          path: androidApp/build/outputs/apk/release/kocoboy-android.apk
           if-no-files-found: error
 
   build_wasm:
@@ -81,24 +81,24 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build Wasm
-        run: ./gradlew :composeApp:wasmJsBrowserDistribution
+        run: ./gradlew :webApp:wasmJsBrowserDistribution
 
       - name: Zip Wasm
-        working-directory: composeApp/build/dist/wasmJs/productionExecutable
+        working-directory: webApp/build/dist/wasmJs/productionExecutable
         run: zip -r kocoboy-wasm.zip .
 
       - name: Upload Wasm Zip Artifact
         uses: actions/upload-artifact@v4
         with:
           name: wasm-build
-          path: composeApp/build/dist/wasmJs/productionExecutable/kocoboy-wasm.zip
+          path: webApp/build/dist/wasmJs/productionExecutable/kocoboy-wasm.zip
           if-no-files-found: error
 
       - name: Upload pages artifact
         id: deployment
         uses: actions/upload-pages-artifact@v3
         with:
-          path: composeApp/build/dist/wasmJs/productionExecutable/
+          path: webApp/build/dist/wasmJs/productionExecutable/
 
   deploy_wasm:
     name: Deploy Wasm
@@ -141,14 +141,14 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build Desktop Package
-        run: ./gradlew :composeApp:packageDistributionForCurrentOS
+        run: ./gradlew :desktopApp:packageDistributionForCurrentOS
         shell: bash
 
       - name: Upload Desktop Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: kocoboy-${{ matrix.os }}.${{ matrix.ext }}
-          path: composeApp/build/compose/binaries/main/${{ matrix.ext }}/*.${{ matrix.ext }}
+          path: desktopApp/build/compose/binaries/main/${{ matrix.ext }}/*.${{ matrix.ext }}
           if-no-files-found: ignore
 
   release:

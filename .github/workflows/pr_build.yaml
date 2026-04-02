@@ -43,7 +43,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build Android APK (Release)
-        run: ./gradlew :composeApp:assembleRelease
+        run: ./gradlew :androidApp:assembleRelease
 
   build_wasm:
     name: Build Wasm
@@ -64,7 +64,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build Wasm
-        run: ./gradlew :composeApp:wasmJsBrowserDistribution
+        run: ./gradlew :webApp:wasmJsBrowserDistribution
 
   build_desktop:
     name: Build on ${{ matrix.os }}
@@ -92,5 +92,5 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build Desktop Package
-        run: ./gradlew :composeApp:packageDistributionForCurrentOS
+        run: ./gradlew :desktopApp:packageDistributionForCurrentOS
         shell: bash

@@ -777,6 +777,19 @@ class CPU(private val bus: Bus) {
         }
     }
 
+    fun handleInterrupt2(interrupt: Int) {
+        if (halted) {
+            PC++
+            halted = false
+        }
+        if (ime) {
+            push(PC)
+            PC = 0x40 or (interrupt * 8)
+            ime = false
+            bus.clearInterrupt2(interrupt)
+        }
+    }
+
     fun updateIme() {
         ime = ime or imeEnabler
         imeEnabler = false
