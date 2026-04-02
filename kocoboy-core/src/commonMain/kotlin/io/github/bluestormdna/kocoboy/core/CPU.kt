@@ -764,7 +764,6 @@ class CPU(private val bus: Bus) {
         }
     }
 
-
     fun handleInterrupt(b: Int) {
         if (halted) {
             PC++
@@ -785,7 +784,7 @@ class CPU(private val bus: Bus) {
         }
         if (ime) {
             push(PC)
-            PC = 0x40 or (interrupt *8)
+            PC = 0x40 or (interrupt * 8)
             ime = false
             bus.clearInterrupt2(interrupt)
         }

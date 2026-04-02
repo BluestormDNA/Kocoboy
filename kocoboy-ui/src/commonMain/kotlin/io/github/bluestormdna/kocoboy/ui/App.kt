@@ -56,7 +56,7 @@ fun App() {
 
     val colorTheme by vm.colorTheme.collectAsState()
     val frameBuffer by vm.frame.collectAsState()
-     val vps by vm.vps.collectAsState()
+    val vps by vm.vps.collectAsState()
     val poweredOn by vm.poweredOn.collectAsState()
     val cartridgeHeader by vm.cartridgeHeader.collectAsState()
 

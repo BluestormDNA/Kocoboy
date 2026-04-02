@@ -178,8 +178,8 @@ class Emulator(
         if (internalPowerSwitch) {
             powerOff()
         } else {
-            //powerOn()
-            runUncapped()
+            powerOn()
+            // runUncapped()
         }
     }
 }

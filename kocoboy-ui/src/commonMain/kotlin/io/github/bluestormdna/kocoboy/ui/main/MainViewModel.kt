@@ -6,16 +6,16 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import io.github.bluestormdna.kocoboy.ui.AudioPlayer
 import io.github.bluestormdna.kocoboy.core.Emulator
 import io.github.bluestormdna.kocoboy.core.JoypadInputs
-import io.github.bluestormdna.kocoboy.ui.createImageBitmapFromIntArray
 import io.github.bluestormdna.kocoboy.host.Host
-import io.github.bluestormdna.kocoboy.ui.platformAudioPlayer
+import io.github.bluestormdna.kocoboy.ui.AudioPlayer
+import io.github.bluestormdna.kocoboy.ui.createImageBitmapFromIntArray
 import io.github.bluestormdna.kocoboy.ui.dmg.ClassicColorTheme
 import io.github.bluestormdna.kocoboy.ui.dmg.ClassicScreenTheme
 import io.github.bluestormdna.kocoboy.ui.dmg.ColorTheme
 import io.github.bluestormdna.kocoboy.ui.dmg.ScreenTheme
+import io.github.bluestormdna.kocoboy.ui.platformAudioPlayer
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.readBytes
 import kotlinx.coroutines.delay
@@ -27,7 +27,6 @@ class MainViewModel(private val platformAudioPlayer: AudioPlayer) : ViewModel() 
 
     private val _colorTheme = MutableStateFlow<ColorTheme>(ClassicColorTheme)
     val colorTheme = _colorTheme.asStateFlow()
-
 
     private val _screenTheme = MutableStateFlow<ScreenTheme>(ClassicScreenTheme)
     val screenTheme = _screenTheme.asStateFlow()
