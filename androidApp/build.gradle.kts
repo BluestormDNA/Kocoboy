@@ -11,7 +11,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        minSdk = 23
+        minSdk = 26
         targetSdk = 36
 
         applicationId = "io.github.bluestormdna.kocoboy"
