@@ -1,7 +1,7 @@
 package io.github.bluestormdna.kocoboy.core
 
 object CpuCycles {
-    val opcodeCycles = arrayOf(
+    val opcodeCycles = intArrayOf(
         4, 12, 8, 8, 4, 4, 8, 4, 20, 8, 8, 8, 4, 4, 8, 4, // 0
         4, 12, 8, 8, 4, 4, 8, 4, 8, 8, 8, 8, 4, 4, 8, 4, // 1
         8, 12, 8, 8, 4, 4, 8, 4, 8, 8, 8, 8, 4, 4, 8, 4, // 2
@@ -30,7 +30,7 @@ object CpuCycles {
         const val JR = 4
     }
 
-    val opcodeCBCycles = arrayOf(
+    val opcodeCBCycles = intArrayOf(
         8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, // 0
         8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, // 1
         8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, // 2
