@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -9,9 +10,13 @@ plugins {
 
 kotlin {
     android {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_21)
+        }
         namespace = "io.github.bluestormdna.kocoboy.ui"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 26
+        androidResources.enable = true
     }
     jvm()
     @OptIn(ExperimentalWasmDsl::class)
@@ -49,4 +54,8 @@ kotlin {
 
 compose.resources {
     packageOfResClass = "kocoboy.ui.resources"
+}
+
+dependencies {
+    androidRuntimeClasspath(libs.compose.tooling)
 }
