@@ -24,7 +24,8 @@ class MBC1(private val rom: UByteArray) : Cartridge {
     private val bankRegister2Shift = if (isMulticart) 4 else 5
 
     override fun readLoROM(addr: UShort): UByte {
-        val bank = if (bankingMode == 1) (bankRegister2 shl bankRegister2Shift) and romBankMask else 0
+        val shiftedBank = bankRegister2 shl bankRegister2Shift
+        val bank = if (bankingMode == 1) shiftedBank and romBankMask else 0
         return rom[(ROM_OFFSET * bank) + addr.toInt()]
     }
 

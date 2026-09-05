@@ -20,7 +20,8 @@ class MBC3(private val rom: UByteArray) : Cartridge {
     private val romBankMask = (rom.size / ROM_OFFSET) - 1
 
     // Capped against eRam's 4-bank size so an unusual header value (MBC30's 8-bank code) can't overrun it.
-    private val ramBankMask = (minOf(rom.ramBankCount, eRam.size / ERAM_OFFSET) - 1).coerceAtLeast(0)
+    private val ramBankCap = minOf(rom.ramBankCount, eRam.size / ERAM_OFFSET)
+    private val ramBankMask = (ramBankCap - 1).coerceAtLeast(0)
 
     // RTC
     private var rtcS = 0
