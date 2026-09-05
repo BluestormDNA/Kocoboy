@@ -10,19 +10,23 @@ class MBC5(private val rom: UByteArray) : Cartridge {
     private var romBankLo = 1
     private var ramBank = 0
 
+    // Out-of-range bank numbers wrap instead of over-reading.
+    private val romBankMask = (rom.size / ROM_OFFSET) - 1
+    private val ramBankMask = (rom.ramBankCount - 1).coerceAtLeast(0)
+
     override fun readLoROM(addr: UShort): UByte = rom[addr.toInt()]
 
     override fun readHiROM(addr: UShort): UByte {
-        // Do any MBC5 game actually use Hi?
-        return rom[(ROM_OFFSET * (romBankLo)) + (addr and 0x3FFFu).toInt()]
+        val romBank = ((romBankHi shl 8) or romBankLo) and romBankMask
+        return rom[(ROM_OFFSET * romBank) + (addr and 0x3FFFu).toInt()]
     }
 
     override fun writeROM(addr: UShort, value: UByte) {
         when (addr) {
             in 0x0000u..0x1FFFu -> eRamEnabled = value == 0x0A.toUByte()
-            in 0x2000u..0x3FFFu -> romBankLo = value.toInt() and 0xFF
-            in 0x4000u..0x5FFFu -> romBankHi = value.toInt() and 0xFF
-            in 0x6000u..0x7FFFu -> ramBank = value.toInt() and 0xF
+            in 0x2000u..0x2FFFu -> romBankLo = value.toInt() and 0xFF
+            in 0x3000u..0x3FFFu -> romBankHi = value.toInt() and 0x1
+            in 0x4000u..0x5FFFu -> ramBank = value.toInt() and 0xF and ramBankMask
         }
     }
 

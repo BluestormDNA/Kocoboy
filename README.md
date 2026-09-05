@@ -26,20 +26,28 @@ The full list goes as follows:
 
 |Supported Cartridge Types  | Unsupported Cartridge Types |
 |--|--|
-|00h  ROM ONLY  |  08h  ROM+RAM |
-|01h  MBC1  |  09h  ROM+RAM+BATTERY |
-|02h  MBC1+RAM  |   0Bh  MMM01|
-|03h  MBC1+RAM+BATTERY  |  0Ch  MMM01+RAM |
-|05h  MBC2  |  0Dh  MMM01+RAM+BATTERY |
-|06h  MBC2+BATTERY  | 1Ch  MBC5+RUMBLE |
-|0Fh  MBC3+TIMER+BATTERY  | 1Dh  MBC5+RUMBLE+RAM |
-|10h  MBC3+TIMER+RAM+BATTERY  | 1Eh  MBC5+RUMBLE+RAM+BATTERY |
-|11h  MBC3  | 20h  MBC6 |
-|12h  MBC3+RAM  | 22h  MBC7+SENSOR+RUMBLE+RAM+BATTERY |
-|13h  MBC3+RAM+BATTERY  | FCh  POCKET CAMERA |
-|19h  MBC5  | FDh  BANDAI TAMA5 |
-|1Ah  MBC5+RAM  | FEh  HuC3 |
-|1Bh  MBC5+RAM+BATTERY  |  FFh  HuC1+RAM+BATTERY |
+|00h  ROM ONLY  |  0Bh  MMM01 |
+|08h  ROM+RAM  |  0Ch  MMM01+RAM |
+|09h  ROM+RAM+BATTERY  |  0Dh  MMM01+RAM+BATTERY |
+|01h  MBC1  |  20h  MBC6 |
+|02h  MBC1+RAM  |  22h  MBC7+SENSOR+RUMBLE+RAM+BATTERY |
+|03h  MBC1+RAM+BATTERY  |  FCh  POCKET CAMERA |
+|05h  MBC2  |  FDh  BANDAI TAMA5 |
+|06h  MBC2+BATTERY  | FEh  HuC3 |
+|0Fh  MBC3+TIMER+BATTERY  |  FFh  HuC1+RAM+BATTERY |
+|10h  MBC3+TIMER+RAM+BATTERY  | |
+|11h  MBC3  | |
+|12h  MBC3+RAM  | |
+|13h  MBC3+RAM+BATTERY  | |
+|19h  MBC5  | |
+|1Ah  MBC5+RAM  | |
+|1Bh  MBC5+RAM+BATTERY  | |
+|1Ch  MBC5+RUMBLE  | |
+|1Dh  MBC5+RUMBLE+RAM  | |
+|1Eh  MBC5+RUMBLE+RAM+BATTERY  | |
+
+> [!NOTE]  
+> MBC1M multicart (4-in-1 compilation) ROMs are supported and auto-detected, no separate cartridge type header exists for them.
 
 > [!NOTE]  
 > SRAM save files are not supported at the moment so your progress on games will be lost on exit.

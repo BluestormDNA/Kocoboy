@@ -16,6 +16,12 @@ class MBC3(private val rom: UByteArray) : Cartridge {
     private var romBank = 1
     private var ramBank = 0
 
+    // Out-of-range bank numbers wrap instead of over-reading.
+    private val romBankMask = (rom.size / ROM_OFFSET) - 1
+
+    // Capped against eRam's 4-bank size so an unusual header value (MBC30's 8-bank code) can't overrun it.
+    private val ramBankMask = (minOf(rom.ramBankCount, eRam.size / ERAM_OFFSET) - 1).coerceAtLeast(0)
+
     // RTC
     private var rtcS = 0
     private var rtcM = 0
@@ -25,8 +31,10 @@ class MBC3(private val rom: UByteArray) : Cartridge {
 
     override fun readLoROM(addr: UShort): UByte = rom[addr.toInt()]
 
-    override fun readHiROM(addr: UShort): UByte =
-        rom[(ROM_OFFSET * romBank) + (addr and 0x3FFFu).toInt()]
+    override fun readHiROM(addr: UShort): UByte {
+        val bank = romBank and romBankMask
+        return rom[(ROM_OFFSET * bank) + (addr and 0x3FFFu).toInt()]
+    }
 
     override fun writeROM(addr: UShort, value: UByte) {
         when (addr) {
@@ -40,8 +48,8 @@ class MBC3(private val rom: UByteArray) : Cartridge {
 
             in 0x4000u..0x5FFFu -> {
                 when (value) {
-                    in 0x00u..0x03u,
-                    in 0x08u..0xC0u,
+                    in 0x00u..0x07u,
+                    in 0x08u..0x0Cu,
                     -> ramBank = value.toInt() and 0xFF
                 }
             }
@@ -62,7 +70,10 @@ class MBC3(private val rom: UByteArray) : Cartridge {
         if (!eRamEnabled) return 0xFFu
 
         return when (ramBank) {
-            in 0x00..0x03 -> eRam[(ERAM_OFFSET * ramBank + (addr and 0x1FFFu).toInt())]
+            in 0x00..0x07 -> {
+                val bank = ramBank and ramBankMask
+                eRam[(ERAM_OFFSET * bank) + (addr and 0x1FFFu).toInt()]
+            }
             0x08 -> rtcS.toUByte()
             0x09 -> rtcM.toUByte()
             0x0A -> rtcH.toUByte()
@@ -76,7 +87,10 @@ class MBC3(private val rom: UByteArray) : Cartridge {
         if (!eRamEnabled) return
 
         when (ramBank) {
-            in 0x00..0x03 -> eRam[(ERAM_OFFSET * ramBank) + (addr and 0x1FFFu).toInt()] = value
+            in 0x00..0x07 -> {
+                val bank = ramBank and ramBankMask
+                eRam[(ERAM_OFFSET * bank) + (addr and 0x1FFFu).toInt()] = value
+            }
             0x08 -> rtcS = value.toInt() and 0xFF
             0x09 -> rtcM = value.toInt() and 0xFF
             0x0A -> rtcH = value.toInt() and 0xFF
