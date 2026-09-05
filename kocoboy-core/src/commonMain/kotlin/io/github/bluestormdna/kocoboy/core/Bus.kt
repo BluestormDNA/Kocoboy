@@ -184,7 +184,8 @@ class Bus(
 
     private fun handleSerialLink(value: Int) {
         // Temp Serial Link output for debug
-        if (value == 0x81) {
+        // Bit 7 (Transfer enable) starts the transfer; bits 0-1 just pick clock source/speed
+        if (value and 0x80 != 0) {
             print(readByte(0xFF01).toChar())
         }
     }

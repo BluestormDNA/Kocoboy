@@ -52,6 +52,9 @@ class Emulator(
         bus.load(bios)
     }
 
+    // Only for testing and profiling purposes
+    fun debugReadByte(addr: Int): Int = bus.readByte(addr)
+
     fun powerOff() {
         internalPowerSwitch = false
         _poweredOn.value = false
