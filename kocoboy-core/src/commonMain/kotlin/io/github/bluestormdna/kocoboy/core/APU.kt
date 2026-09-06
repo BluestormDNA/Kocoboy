@@ -164,9 +164,8 @@ class APU(private val host: Host) {
         0x25 -> nr51
         0x26 -> getNR52MasterControl()
         in 0x30..0x3F -> channel3.wavePatternRAM[addr and 0xF].toByte()
-        else -> 0xFF.toByte().also {
-            println("Attempting to read SPU $addr")
-        }
+        // FF15, FF1F and FF27..FF2F are unmapped and read back as 0xFF
+        else -> 0xFF.toByte()
     }
 
     private fun getNR52MasterControl(): Byte {
