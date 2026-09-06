@@ -12,6 +12,9 @@ class PPU(private val host: Host) {
     private var windowTriggeredThisFrame = false
     private val frameBuffer = IntArray(160 * 144)
 
+    // per scanline BG colour ids, sprite priority is decided on the id not the shade
+    private val bgColorZero = BooleanArray(160)
+
     // PPU Regs
     private var lcdc: Byte = 0 // FF40 - LCDC - LCD Control (R/W)
     private var stat: Byte = 0 // FF41 - STAT - LCDC Status (R/W)
@@ -62,6 +65,10 @@ class PPU(private val host: Host) {
                     windowInternalLine = 0
                     windowTriggeredThisFrame = false
                     stat = (stat and 0x3.toByte().inv())
+                    // the panel goes blank white while the LCD is off, not frozen on the last frame
+                    frameBuffer.fill(color[0])
+                    bgColorZero.fill(true)
+                    host.render(frameBuffer)
                 }
 
                 if (!wasEnabled and isEnabled) {
@@ -190,12 +197,23 @@ class PPU(private val host: Host) {
     private fun drawScanLine(bus: Bus) {
         if (isBit(0, lcdc)) { // Bit 0 - BG Display (0=Off, 1=On)
             renderBG(bus)
+        } else {
+            blankScanLine()
         }
         if (isBit(1, lcdc)) { // Bit 1 - OBJ (Sprite) Display Enable
             // val time = measureTime {
             renderSpritesBuffer(bus)
             // }
             // println("meassured: $time on ${mmu.LY.toInt() and 0xFF}")
+        }
+    }
+
+    // BG off renders white, and counts as colour 0 everywhere for sprite priority
+    private fun blankScanLine() {
+        val LY = ly.toInt() and 0xFF
+        for (p in 0..<SCREEN_WIDTH) {
+            frameBuffer.write(p, LY, color[0])
+            bgColorZero[p] = true
         }
     }
 
@@ -242,6 +260,7 @@ class PPU(private val host: Host) {
             val colorId = getColorIdBits(colorBit, lo, hi)
             val color = backgroundPalette[colorId]
 
+            bgColorZero[p] = colorId == 0
             frameBuffer.write(p, LY, color)
         }
 
@@ -296,7 +315,7 @@ class PPU(private val host: Host) {
                     val colorId: Int = getColorIdBits(idPos, lo.toByte(), hi.toByte())
 
                     if (!isTransparent(colorId) &&
-                        (isAboveBG(attr) || isBGWhite(x + p, unsignedLy))
+                        (isAboveBG(attr) || bgColorZero[x + p])
                     ) {
                         val color = palette[colorId]
                         frameBuffer.write(x + p, unsignedLy, color)
@@ -322,8 +341,6 @@ class PPU(private val host: Host) {
     }
 
     private inline fun isTransparent(b: Int): Boolean = b == 0
-
-    private fun isBGWhite(x: Int, y: Int): Boolean = frameBuffer.read(x, y) == backgroundPalette[0]
 
     private inline fun isAboveBG(attr: Byte): Boolean {
         // Bit7 OBJ-to - BG Priority(0 = OBJ Above BG, 1 = OBJ Behind BG color 1 - 3)
