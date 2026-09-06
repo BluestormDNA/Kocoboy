@@ -153,6 +153,12 @@ class CPU(private val bus: Bus) {
 
         val opcode = fetch()
 
+        // halt bug: the byte after HALT is fetched twice, so undo this fetch's increment
+        if (haltBug) {
+            haltBug = false
+            PC--
+        }
+
         when (opcode) {
             0x00 -> Unit
             0x01 -> BC = fetchWord()
@@ -753,14 +759,13 @@ class CPU(private val bus: Bus) {
     }
 
     private fun halt() {
-        if (!ime) {
-            val flags = bus.interruptFlags and bus.interruptEnabled
-            if ((flags and 0x1F) == 0.toByte()) {
-                halted = true
-                PC--
-            } else {
-                haltBug = true
-            }
+        val flags = bus.interruptFlags and bus.interruptEnabled
+        // with IME set the CPU always suspends, the pending interrupt wakes it right back up
+        if (ime || (flags and 0x1F) == 0.toByte()) {
+            halted = true
+            PC--
+        } else {
+            haltBug = true
         }
     }
 
