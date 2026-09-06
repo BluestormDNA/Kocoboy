@@ -6,6 +6,7 @@ import kotlin.experimental.or
 class ChannelWave {
     var nr30: Byte = 0
     private var isEnabled = false
+    private var dacOn = false
 
     private var nr31Length: Byte = 0
     private var length = 0
@@ -30,11 +31,13 @@ class ChannelWave {
 
     fun setNR30DacEnable(value: Byte) {
         nr30 = value or 0x7F
-        isEnabled = value.toUInt() and 0x80u != 0u
+        dacOn = value.toUInt() and 0x80u != 0u
+        if (!dacOn) isEnabled = false
     }
 
     fun setNR31Length(value: Byte) {
         nr31Length = value
+        length = 256 - (value.toInt() and 0xFF)
     }
 
     fun setNR32OutputLevel(value: Byte) {
@@ -59,7 +62,7 @@ class ChannelWave {
     }
 
     private fun handleTrigger() {
-        isEnabled = true
+        isEnabled = dacOn
         if (length == 0) length = 256
         freq = (periodHi.toUInt() shl 8 or nrx3PeriodLo.toUInt()).toUShort()
         waveIndex = 0

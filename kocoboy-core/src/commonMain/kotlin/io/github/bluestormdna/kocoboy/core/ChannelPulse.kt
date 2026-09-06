@@ -29,6 +29,7 @@ class ChannelPulse {
     private var envelopeInitialVolume = 0
     private var envelopeDirection = 0
     private var envelopeSweep = 0
+    private var dacOn = false
 
     private var nrx3periodLo: UByte = 0u
 
@@ -55,6 +56,8 @@ class ChannelPulse {
         envelopeInitialVolume = value.toInt() ushr 4
         envelopeDirection = (value.toInt() ushr 3) and 0x1
         envelopeSweep = value.toInt() and 0x7
+        dacOn = (value.toInt() and 0xF8) != 0
+        if (!dacOn) isEnabled = false
     }
 
     fun setNRx3PeriodLow(value: Byte) {
@@ -75,7 +78,7 @@ class ChannelPulse {
     }
 
     private fun handleTrigger() {
-        isEnabled = true
+        isEnabled = dacOn
         if (length == 0) length = 64
         freq = (periodHi.toUInt() shl 8 or nrx3periodLo.toUInt()).toUShort()
         envelopeCounter = envelopeSweep
@@ -132,7 +135,7 @@ class ChannelPulse {
 
         if (counter <= 0) {
             freq = (periodHi.toUInt() shl 8 or nrx3periodLo.toUInt()).toUShort()
-            counter = ((2048u - freq) * 2u).toLong()
+            counter = ((2048u - freq) * 4u).toLong()
 
             wavePatternPosition = (wavePatternPosition + 1) and 0x7
             val wave = waveForm[wavePatternDuty]

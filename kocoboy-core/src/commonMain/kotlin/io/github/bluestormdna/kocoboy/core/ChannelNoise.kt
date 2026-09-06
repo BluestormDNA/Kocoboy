@@ -12,6 +12,7 @@ class ChannelNoise {
     private var envelopeInitialVolume = 0
     private var envelopeDirection = 0
     private var envelopeSweep = 0
+    private var dacOn = false
 
     var nr43: Byte = 0
     private var clockShift = 0
@@ -43,6 +44,8 @@ class ChannelNoise {
         envelopeInitialVolume = value.toInt() ushr 4
         envelopeDirection = (value.toInt() ushr 3) and 0x1
         envelopeSweep = value.toInt() and 0x7
+        dacOn = (value.toInt() and 0xF8) != 0
+        if (!dacOn) isEnabled = false
     }
 
     fun setNR43Frequency(value: Byte) {
@@ -61,7 +64,7 @@ class ChannelNoise {
         lengthEnable = (value.toInt() and 0x40) != 0
 
         if (trigger) {
-            isEnabled = true
+            isEnabled = dacOn
             counter = period
             envelopeCounter = envelopeSweep
             envelopeVolume = envelopeInitialVolume

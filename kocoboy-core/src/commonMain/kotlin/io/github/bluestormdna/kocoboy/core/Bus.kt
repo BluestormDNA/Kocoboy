@@ -91,21 +91,23 @@ class Bus(
         ppu.write(0x48, 0xFF.toByte(), this)
         ppu.write(0x49, 0xFF.toByte(), this)
 
+        // NR52 first, APU.write drops everything below 0x26 while the APU is off
+        apu.write(0x26, 0xF1.toByte())
         apu.write(0x10, 0x80.toByte())
         apu.write(0x11, 0xBF.toByte())
         apu.write(0x12, 0xF3.toByte())
-        apu.write(0x14, 0xBF.toByte())
+        // NRx4 post-boot values read as 0xBF, bit 7 is write-only trigger so mask it off
+        apu.write(0x14, 0x3F.toByte())
         apu.write(0x16, 0x3F.toByte())
-        apu.write(0x19, 0xBF.toByte())
+        apu.write(0x19, 0x3F.toByte())
         apu.write(0x1A, 0x7F.toByte())
         apu.write(0x1B, 0xFF.toByte())
         apu.write(0x1C, 0x9F.toByte())
-        apu.write(0x1E, 0xBF.toByte())
+        apu.write(0x1E, 0x3F.toByte())
         apu.write(0x20, 0xFF.toByte())
-        apu.write(0x23, 0xBF.toByte())
+        apu.write(0x23, 0x3F.toByte())
         apu.write(0x24, 0x77.toByte())
         apu.write(0x25, 0xF3.toByte())
-        apu.write(0x26, 0xF1.toByte())
     }
 
     private val onBootRom: Boolean
