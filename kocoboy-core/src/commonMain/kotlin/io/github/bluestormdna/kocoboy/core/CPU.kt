@@ -754,7 +754,7 @@ class CPU(private val bus: Bus) {
 
     private fun halt() {
         if (!ime) {
-            val flags = bus.interruptFlags and bus.interruptFlags
+            val flags = bus.interruptFlags and bus.interruptEnabled
             if ((flags and 0x1F) == 0.toByte()) {
                 halted = true
                 PC--
