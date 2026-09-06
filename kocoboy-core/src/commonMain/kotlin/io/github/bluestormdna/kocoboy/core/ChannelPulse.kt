@@ -132,7 +132,7 @@ class ChannelPulse {
 
         if (counter <= 0) {
             freq = (periodHi.toUInt() shl 8 or nrx3periodLo.toUInt()).toUShort()
-            counter = ((2048u - freq) * 2u).toLong()
+            counter = ((2048u - freq) * 4u).toLong()
 
             wavePatternPosition = (wavePatternPosition + 1) and 0x7
             val wave = waveForm[wavePatternDuty]
