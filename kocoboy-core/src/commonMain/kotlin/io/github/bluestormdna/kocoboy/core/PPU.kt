@@ -51,8 +51,8 @@ class PPU(private val host: Host) {
         when (ioAddress) {
             0x40 -> {
                 if (value == lcdc) return
-                lcdc = value
                 val wasEnabled = isBit(7, lcdc)
+                lcdc = value
                 isEnabled = isBit(7, value)
 
                 if (!isEnabled) {
