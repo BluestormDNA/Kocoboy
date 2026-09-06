@@ -85,10 +85,12 @@ class APU(private val host: Host) {
             val ch4LSample = if (channel4L) channel4.sample else 0
             val ch4RSample = if (channel4R) channel4.sample else 0
 
-            val mixedL = ch1LSample + ch2LSample + ch3LSample + ch4LSample + 128
-            val mixedR = ch1RSample + ch2RSample + ch3RSample + ch4RSample + 128
+            val sumL = ch1LSample + ch2LSample + ch3LSample + ch4LSample
+            val sumR = ch1RSample + ch2RSample + ch3RSample + ch4RSample
 
-            // todo handle Main Volume
+            val mixedL = sumL * (masterVolL + 1) / 8 + 128
+            val mixedR = sumR * (masterVolR + 1) / 8 + 128
+
             sampleBuffer[bufferPointer++] = mixedL.toByte()
             sampleBuffer[bufferPointer++] = mixedR.toByte()
 
