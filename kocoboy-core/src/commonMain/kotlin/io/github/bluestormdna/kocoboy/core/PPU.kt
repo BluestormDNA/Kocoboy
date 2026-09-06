@@ -9,6 +9,7 @@ class PPU(private val host: Host) {
 
     private var scanlineCounter = 0
     private var windowInternalLine = 0
+    private var windowTriggeredThisFrame = false
     private val frameBuffer = IntArray(160 * 144)
 
     // PPU Regs
@@ -59,6 +60,7 @@ class PPU(private val host: Host) {
                     ly = 0
                     scanlineCounter = 0
                     windowInternalLine = 0
+                    windowTriggeredThisFrame = false
                     stat = (stat and 0x3.toByte().inv())
                 }
 
@@ -141,6 +143,8 @@ class PPU(private val host: Host) {
                     if (isBit(4, stat)) {
                         bus.requestInterrupt(LCD_INTERRUPT)
                     }
+                    windowInternalLine = 0
+                    windowTriggeredThisFrame = false
                     host.render(frameBuffer)
                 } else { // not arrived yet so return to mode 2 / OAM
                     updateStatMode(2)
@@ -201,9 +205,8 @@ class PPU(private val host: Host) {
         val LY = ly.toInt() and 0xFF
         val SCY = scy.toInt() and 0xFF
         val SCX = scx.toInt() and 0xFF
-        val isWin = isWindow(lcdc, WY, LY)
-
-        if (LY == WY) windowInternalLine = 0
+        if (LY == WY) windowTriggeredThisFrame = true
+        val isWin = isBit(5, lcdc) && windowTriggeredThisFrame
 
         val windowTileMapAddress = getWindowTileMapAddress(lcdc)
         val bgTileMapAddress = getBackgroundTileMapAddress(lcdc)
@@ -303,11 +306,6 @@ class PPU(private val host: Host) {
         }
     }
 
-    private inline fun isWindow(LCDC: Byte, WY: Int, LY: Int): Boolean {
-        // Bit 5 - Window Display Enable (0=Off, 1=On)
-        return isBit(5, LCDC) && WY <= LY
-    }
-
     private inline fun spriteSize(LCDC: Byte): Int {
         // Bit 2 - OBJ (Sprite) Size (0=8x8, 1=8x16)
         return if (isBit(2, LCDC)) 16 else 8
@@ -367,6 +365,7 @@ class PPU(private val host: Host) {
     fun reset() {
         scanlineCounter = 0
         windowInternalLine = 0
+        windowTriggeredThisFrame = false
         frameBuffer.fill(color[0])
         host.render(frameBuffer)
 
