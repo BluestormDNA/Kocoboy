@@ -119,15 +119,15 @@ class PPU(private val host: Host) {
             Mode.OAM_MODE2 -> if (scanlineCounter >= OAM_CYCLES) {
                 scanlineCounter -= OAM_CYCLES
                 updateStatMode(3)
-                if (isBit(5, stat)) {
-                    bus.requestInterrupt(LCD_INTERRUPT)
-                }
             }
 
             Mode.VRAM_MODE3 -> if (scanlineCounter >= VRAM_CYCLES) {
                 scanlineCounter -= VRAM_CYCLES
                 updateStatMode(0)
                 drawScanLine(bus)
+                if (isBit(3, stat)) {
+                    bus.requestInterrupt(LCD_INTERRUPT)
+                }
             }
 
             Mode.HBLANK_MODE0 -> if (scanlineCounter >= HBLANK_CYCLES) {
@@ -135,16 +135,18 @@ class PPU(private val host: Host) {
                 ly++
                 handleCoincidenceFlag(bus)
 
-                if (isBit(3, stat)) {
-                    bus.requestInterrupt(LCD_INTERRUPT)
-                }
-
                 if (ly.toInt() and 0xFF == SCREEN_HEIGHT) { // check if we arrived Vblank
                     updateStatMode(1) // Set VBlank
                     bus.requestInterrupt(VBLANK_INTERRUPT)
+                    if (isBit(4, stat)) {
+                        bus.requestInterrupt(LCD_INTERRUPT)
+                    }
                     host.render(frameBuffer)
                 } else { // not arrived yet so return to mode 2 / OAM
                     updateStatMode(2)
+                    if (isBit(5, stat)) {
+                        bus.requestInterrupt(LCD_INTERRUPT)
+                    }
                 }
             }
 
@@ -153,14 +155,13 @@ class PPU(private val host: Host) {
                 ly++
                 handleCoincidenceFlag(bus)
 
-                if (isBit(4, stat)) {
-                    bus.requestInterrupt(LCD_INTERRUPT)
-                }
-
                 if ((ly.toInt() and 0xFF) > SCREEN_VBLANK_HEIGHT) { // check end of VBLANK
                     updateStatMode(2)
                     ly = 0
                     handleCoincidenceFlag(bus)
+                    if (isBit(5, stat)) {
+                        bus.requestInterrupt(LCD_INTERRUPT)
+                    }
                 }
             }
         }
