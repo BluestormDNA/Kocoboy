@@ -118,10 +118,13 @@ jobs:
       matrix:
         include:
           - os: windows-latest
+            name: windows
             ext: msi
           - os: macos-latest
+            name: macos
             ext: dmg
           - os: ubuntu-latest
+            name: linux
             ext: deb
     runs-on: ${{ matrix.os }}
     needs: spotless_check
@@ -144,12 +147,20 @@ jobs:
         run: ./gradlew :desktopApp:packageDistributionForCurrentOS
         shell: bash
 
+      - name: Rename Desktop Package
+        shell: bash
+        run: |
+          dir=desktopApp/build/compose/binaries/main/${{ matrix.ext }}
+          for file in "$dir"/kocoboy*.${{ matrix.ext }}; do
+            mv "$file" "$dir/kocoboy-${{ matrix.name }}${file#"$dir"/kocoboy}"
+          done
+
       - name: Upload Desktop Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: kocoboy-${{ matrix.os }}.${{ matrix.ext }}
-          path: desktopApp/build/compose/binaries/main/${{ matrix.ext }}/*.${{ matrix.ext }}
-          if-no-files-found: ignore
+          name: kocoboy-${{ matrix.name }}
+          path: desktopApp/build/compose/binaries/main/${{ matrix.ext }}/kocoboy-${{ matrix.name }}*.${{ matrix.ext }}
+          if-no-files-found: error
 
   release:
     name: Create GitHub Release
@@ -172,6 +183,6 @@ jobs:
           files: |
             android-apk/kocoboy-android.apk
             wasm-build/kocoboy-wasm.zip
-            kocoboy-windows-latest.msi/*
-            kocoboy-macos-latest.dmg/*
-            kocoboy-ubuntu-latest.deb/*
+            kocoboy-windows/*
+            kocoboy-macos/*
+            kocoboy-linux/*

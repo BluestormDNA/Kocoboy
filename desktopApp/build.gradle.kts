@@ -18,9 +18,7 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            macOS { packageName = "kocoboy-macos" }
-            windows { packageName = "kocoboy-windows" }
-            linux { packageName = "kocoboy-linux" }
+            packageName = "kocoboy"
         }
 
         buildTypes.release.proguard {
