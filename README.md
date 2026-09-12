@@ -72,9 +72,10 @@ On platforms with keyboard input is mapped as:
 * Select: **O**
 
 ## About the project
-The project is splitted in 2 modules:  
-**core:** It contains just commonMain Kotlin code. It represents the full emulator core with CPU, PPU, Bus and other components.  
-**composeApp:** A Compose Multiplatform gradle module it is mainly a commonMain centric module with a couple of per platform functions, for image and audio handling.
+The project is split in 2 library modules plus a thin entry point per platform:  
+**kocoboy-core:** It contains just commonMain Kotlin code. It represents the full emulator core with CPU, PPU, APU, Bus and other components. It only talks outside through the `Host` interface, so it can also run headless.  
+**kocoboy-ui:** A Compose Multiplatform gradle module it is mainly a commonMain centric module with a couple of per platform functions, for image and audio handling.  
+**androidApp / desktopApp / webApp / iosApp:** Just the platform entry points, a few lines each, calling into kocoboy-ui.
 
 ## Known issues
 This is nowhere a full list of issues just some of them from a high view perspective:
