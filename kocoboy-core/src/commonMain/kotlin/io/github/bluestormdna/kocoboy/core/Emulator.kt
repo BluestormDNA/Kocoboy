@@ -6,10 +6,10 @@ import io.github.bluestormdna.kocoboy.core.cartridge.EmptyCartridgeHeader
 import io.github.bluestormdna.kocoboy.core.cartridge.resolveCartridgeType
 import io.github.bluestormdna.kocoboy.host.Host
 import kotlin.concurrent.Volatile
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource.Monotonic.markNow
-import kotlin.time.measureTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -69,7 +69,8 @@ class Emulator(
         timer.reset()
     }
 
-    private val targetTime = 1.seconds / 60
+    private val framePeriod = 1.seconds * CYCLES_PER_FRAME / CPU_HZ
+    private val spinTime = 2.milliseconds
 
     fun powerOn() = launchLoop { runFrames() }
 
@@ -117,28 +118,14 @@ class Emulator(
     }
 
     private suspend fun CoroutineScope.runFrames() {
+        var nextFrame = markNow() + framePeriod
         while (internalPowerSwitch && isActive) {
-            val startOfFrame = markNow()
-            val frameTime = measureTime { runFrame() }
-
-            val sleepTime = targetTime - frameTime - 3.milliseconds
-
-            if (sleepTime.inWholeMilliseconds > 1) {
-                // val preSleepTime = startOfFrame.elapsedNow()
-                // delay doesn't have enough resolution so try to sleep less
-                // and busy wait at the end
-                // todo review this per platform as they seem to have differences
-                // and actual/expect heuristics
-                delay(sleepTime.inWholeMilliseconds / 2)
-                // println("postSleepElapsed: ${startOfFrame.elapsedNow() - preSleepTime}")
-            }
-
-            // ("targetTime: $targetTime frameTime: $frameTime sleepTime: $sleepTime")
-            // println("End of frame: ${startOfFrame.elapsedNow()}")
-
-            while (startOfFrame.elapsedNow() < targetTime) {
-                yield()
-            }
+            runFrame()
+            val left = -nextFrame.elapsedNow()
+            if (left > spinTime) delay(left - spinTime)
+            while (-nextFrame.elapsedNow() > Duration.ZERO) yield()
+            val stalled = nextFrame.elapsedNow() > spinTime
+            nextFrame = (if (stalled) markNow() else nextFrame) + framePeriod
         }
     }
 
@@ -161,6 +148,7 @@ class Emulator(
 
     companion object {
         const val CYCLES_PER_FRAME = 70224
+        private const val CPU_HZ = 4_194_304
     }
 
     fun powerSwitch() {
