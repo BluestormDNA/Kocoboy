@@ -5,10 +5,11 @@ import io.github.bluestormdna.kocoboy.core.cartridge.DefaultCartridgeHeader
 import io.github.bluestormdna.kocoboy.core.cartridge.EmptyCartridgeHeader
 import io.github.bluestormdna.kocoboy.core.cartridge.resolveCartridgeType
 import io.github.bluestormdna.kocoboy.host.Host
+import kotlin.concurrent.Volatile
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource.Monotonic.markNow
-import kotlin.time.measureTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -16,6 +17,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
 
@@ -36,7 +38,7 @@ class Emulator(
     private val _cartridgeHeader = MutableStateFlow<CartridgeHeader>(EmptyCartridgeHeader())
     val cartridgeHeader = _cartridgeHeader.asStateFlow()
 
-    // Todo check the overhead of stateflow.value access on a tight loop so we can remove this
+    @Volatile
     private var internalPowerSwitch = false
 
     private var emulatorJob: Job = Job()
@@ -67,84 +69,63 @@ class Emulator(
         timer.reset()
     }
 
-    private var cycleCounter = 0
+    private val framePeriod = 1.seconds * CYCLES_PER_FRAME / CPU_HZ
+    private val spinTime = 2.milliseconds
 
-    private val targetTime = 1.seconds / 60
+    fun powerOn() = launchLoop { runFrames() }
 
-    // todo: actual kmp lock this...
-    fun powerOn() {
-        emulatorJob.cancel()
+    // Only for testing and profiling purposes
+    fun runUncapped() = launchLoop {
+        // per frame: a volatile read and a context walk are too expensive per instruction
+        while (internalPowerSwitch && isActive) runFrame()
+    }
+
+    // never two loops over the same CPU and Bus, each one starts and ends on a reset machine
+    private fun launchLoop(loop: suspend CoroutineScope.() -> Unit) {
+        val previous = emulatorJob
+        previous.cancel()
         emulatorJob = scope.launch {
+            previous.join()
             reset()
+            frameCycles = 0
             internalPowerSwitch = true
             _poweredOn.value = true
-
-            var frameCycles = 0
-            while (internalPowerSwitch) {
-                val startOfFrame = markNow()
-                val frameTime = measureTime {
-                    while (frameCycles < 70224) {
-                        val cycles = cpu.execute()
-                        frameCycles += cycles
-                        timer.update(cycles, bus)
-                        ppu.update(cycles, bus)
-                        apu.update(cycles)
-                        handleInterrupts()
-                        cycleCounter++
-                    }
-                    frameCycles -= 70224
-                }
-
-                val sleepTime = targetTime - frameTime - 3.milliseconds
-
-                if (sleepTime.inWholeMilliseconds > 1) {
-                    // val preSleepTime = startOfFrame.elapsedNow()
-                    // delay doesn't have enough resolution so try to sleep less
-                    // and busy wait at the end
-                    // todo review this per platform as they seem to have differences
-                    // and actual/expect heuristics
-                    delay(sleepTime.inWholeMilliseconds / 2)
-                    // println("postSleepElapsed: ${startOfFrame.elapsedNow() - preSleepTime}")
-                }
-
-                // ("targetTime: $targetTime frameTime: $frameTime sleepTime: $sleepTime")
-                // println("End of frame: ${startOfFrame.elapsedNow()}")
-
-                while (startOfFrame.elapsedNow() < targetTime) {
-                    yield()
-                }
-
-                // println("targetTime: $targetTime frameTime: $frameTime sleepTime: $sleepTime")
-                // println("End of frame: ${startOfFrame.elapsedNow()}")
-            }
-
-            reset()
-        }.also {
-            it.invokeOnCompletion {
+            try {
+                loop()
+            } finally {
+                // powering off leaves a blank screen
+                reset()
                 internalPowerSwitch = false
                 _poweredOn.value = false
             }
         }
     }
 
-    // Only for testing and profiling purposes
-    fun runUncapped() {
-        emulatorJob = scope.launch {
-            internalPowerSwitch = true
-            _poweredOn.value = true
-            while (internalPowerSwitch) {
-                val cycles = cpu.execute()
-                timer.update(cycles, bus)
-                ppu.update(cycles, bus)
-                apu.update(cycles)
-                handleInterrupts()
-            }
-            reset()
-        }.also {
-            it.invokeOnCompletion {
-                internalPowerSwitch = false
-                _poweredOn.value = false
-            }
+    // overshoot of the last frame, carried into the next one
+    private var frameCycles = 0
+
+    private fun runFrame() {
+        var cycles = frameCycles
+        while (cycles < CYCLES_PER_FRAME) {
+            val step = cpu.execute()
+            cycles += step
+            timer.update(step, bus)
+            ppu.update(step, bus)
+            apu.update(step)
+            handleInterrupts()
+        }
+        frameCycles = cycles - CYCLES_PER_FRAME
+    }
+
+    private suspend fun CoroutineScope.runFrames() {
+        var nextFrame = markNow() + framePeriod
+        while (internalPowerSwitch && isActive) {
+            runFrame()
+            val left = -nextFrame.elapsedNow()
+            if (left > spinTime) delay(left - spinTime)
+            while (-nextFrame.elapsedNow() > Duration.ZERO) yield()
+            val stalled = nextFrame.elapsedNow() > spinTime
+            nextFrame = (if (stalled) markNow() else nextFrame) + framePeriod
         }
     }
 
@@ -163,6 +144,11 @@ class Emulator(
             cpu.handleInterrupt(interrupt)
         }
         cpu.updateIme()
+    }
+
+    companion object {
+        const val CYCLES_PER_FRAME = 70224
+        private const val CPU_HZ = 4_194_304
     }
 
     fun powerSwitch() {
