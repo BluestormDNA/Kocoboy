@@ -1,65 +1,63 @@
 package io.github.bluestormdna.kocoboy.core
 
-import kotlin.experimental.and
-import kotlin.experimental.inv
-import kotlin.experimental.or
+import kotlin.concurrent.Volatile
 
 class Joypad {
 
-    private var pad = IDLE
-    private var buttons = IDLE
+    @Volatile
+    private var held = 0xFF
 
-    private var pollingPad = false
-    private var pollingButtons = false
+    private var latched = 0xFF
+    private var select = 0
 
-    private var joyp: Byte = JOYPAD_IDLE
-
-    fun press(b: Byte, bus: Bus) {
-        if ((b and PAD_MASK) == PAD_MASK) {
-            pad = pad and (b and 0xF).inv()
-            if (pollingPad) {
-                bus.requestInterrupt(JOYPAD_INTERRUPT)
-            }
-        } else if ((b and BUTTON_MASK) == BUTTON_MASK) {
-            buttons = buttons and (b and 0xF).inv()
-            if (pollingButtons) {
-                bus.requestInterrupt(JOYPAD_INTERRUPT)
-            }
-        }
+    fun press(b: Byte) {
+        held = held and bit(b).inv()
     }
 
     fun release(b: Byte) {
-        if ((b and PAD_MASK) == PAD_MASK) {
-            pad = pad or (b and 0xF)
-        } else if ((b and BUTTON_MASK) == BUTTON_MASK) {
-            buttons = buttons or b and 0xF
-        }
+        held = held or bit(b)
     }
 
-    fun write(value: Byte) {
-        joyp = value and MODE_MASK
-        pollingPad = value and PAD_MASK == 0.toByte()
-        pollingButtons = value and BUTTON_MASK == 0.toByte()
+    fun latch(bus: Bus) {
+        val before = lines()
+        latched = held
+        raiseOnFall(before, bus)
     }
 
-    fun read(): Byte {
-        if (pollingPad) {
-            return joyp or pad
-        }
+    fun write(value: Byte, bus: Bus) {
+        val before = lines()
+        select = value.toInt() and SELECT_MASK
+        raiseOnFall(before, bus)
+    }
 
-        if (pollingButtons) {
-            return joyp or buttons
-        }
+    fun read(): Byte = (UNUSED_BITS or select or lines()).toByte()
 
-        return JOYPAD_IDLE
+    fun reset() {
+        latched = held
+        select = 0
+    }
+
+    private fun bit(b: Byte): Int {
+        val bit = b.toInt() and 0xF
+        return if (b.toInt() and BUTTON_SELECT != 0) bit shl 4 else bit
+    }
+
+    private fun lines(): Int {
+        var lines = 0xF
+        if (select and PAD_SELECT == 0) lines = lines and latched
+        if (select and BUTTON_SELECT == 0) lines = lines and (latched ushr 4)
+        return lines and 0xF
+    }
+
+    private fun raiseOnFall(before: Int, bus: Bus) {
+        if (before and lines().inv() != 0) bus.requestInterrupt(JOYPAD_INTERRUPT)
     }
 
     companion object {
         private const val JOYPAD_INTERRUPT: Byte = 0x10
-        private const val PAD_MASK: Byte = 0x10
-        private const val BUTTON_MASK: Byte = 0x20
-        private const val MODE_MASK: Byte = 0xF0.toByte()
-        private const val JOYPAD_IDLE: Byte = 0xFF.toByte()
-        private const val IDLE: Byte = 0xF
+        private const val PAD_SELECT = 0x10
+        private const val BUTTON_SELECT = 0x20
+        private const val SELECT_MASK = 0x30
+        private const val UNUSED_BITS = 0xC0
     }
 }

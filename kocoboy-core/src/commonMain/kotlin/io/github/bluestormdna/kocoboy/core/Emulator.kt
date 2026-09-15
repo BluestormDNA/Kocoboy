@@ -71,6 +71,7 @@ class Emulator(
         bus.reset()
         ppu.reset()
         timer.reset()
+        joypad.reset()
     }
 
     private val framePeriod = 1.seconds * CYCLES_PER_FRAME / CPU_HZ
@@ -108,6 +109,7 @@ class Emulator(
 
     private fun runFrame() {
         frameEnd += CYCLES_PER_FRAME
+        joypad.latch(bus)
         while (scheduler.clock < frameEnd) {
             scheduler.advance(cpu.step())
             while (scheduler.clock >= scheduler.nextDeadline) dispatch(scheduler.pollDue())
@@ -137,7 +139,7 @@ class Emulator(
     }
 
     fun handleInputPress(input: JoypadInputs) {
-        joypad.press(input.bits, bus)
+        joypad.press(input.bits)
     }
 
     fun handleInputRelease(input: JoypadInputs) {
