@@ -25,10 +25,13 @@ class Scheduler {
     var firedAt: Long = 0
         private set
 
+    var frameEnd: Long = 0
+
     fun reset() {
         clock = 0
         deadlines.fill(Long.MAX_VALUE)
         firedAt = 0
+        frameEnd = 0
         nextDeadline = Long.MAX_VALUE
         nextEvent = -1
     }

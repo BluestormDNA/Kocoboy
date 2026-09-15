@@ -29,7 +29,7 @@ class Emulator(
     private val joypad: Joypad = Joypad(),
     private val timer: Timer = Timer(scheduler),
     private val bus: Bus = Bus(apu, joypad, timer, ppu),
-    private val cpu: CPU = CPU(bus),
+    private val cpu: CPU = CPU(bus, scheduler),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
 ) {
 
@@ -65,7 +65,6 @@ class Emulator(
 
     private fun reset() {
         scheduler.reset()
-        frameEnd = 0
         apu.start()
         cpu.reset()
         bus.reset()
@@ -105,12 +104,10 @@ class Emulator(
         }
     }
 
-    private var frameEnd = 0L
-
     private fun runFrame() {
-        frameEnd += CYCLES_PER_FRAME
+        scheduler.frameEnd += CYCLES_PER_FRAME
         joypad.latch(bus)
-        while (scheduler.clock < frameEnd) {
+        while (scheduler.clock < scheduler.frameEnd) {
             scheduler.advance(cpu.step())
             while (scheduler.clock >= scheduler.nextDeadline) dispatch(scheduler.pollDue())
         }
