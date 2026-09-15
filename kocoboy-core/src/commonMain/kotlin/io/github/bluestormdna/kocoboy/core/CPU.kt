@@ -5,7 +5,7 @@ package io.github.bluestormdna.kocoboy.core
 import kotlin.experimental.and
 
 @OptIn(ExperimentalStdlibApi::class)
-class CPU(private val bus: Bus) {
+class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
     private var A: Int = 0
         set(value) {
@@ -759,11 +759,19 @@ class CPU(private val bus: Bus) {
     }
 
     private fun halt() {
-        val flags = bus.interruptFlags and bus.interruptEnabled
-        // with IME set the CPU always suspends, the pending interrupt wakes it right back up
-        if (ime || (flags and 0x1F) == 0.toByte()) {
+        val flags = bus.interruptFlags.toInt() and bus.interruptEnabled.toInt() and 0x1F
+        if (ime || flags == 0) {
             halted = true
             PC--
+            // No flag pending, nothing changes before the next event or the frame end
+            // so skip there instead of re-running HALT 4 cycles at a time
+            if (flags == 0) {
+                val wakeAt = minOf(scheduler.nextDeadline, scheduler.frameEnd)
+                val haltedCycles = wakeAt - scheduler.clock
+                // This HALT is +4 cycles, add the re-runs that still fit before wakeAt
+                // so the clock lands on the same cycle the slow loop would have
+                cycles += ((haltedCycles - 1) / 4 * 4).toInt()
+            }
         } else {
             haltBug = true
         }
