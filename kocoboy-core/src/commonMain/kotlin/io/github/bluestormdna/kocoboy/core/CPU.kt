@@ -770,7 +770,7 @@ class CPU(private val bus: Bus) {
     }
 
     fun step(): Int {
-        val pending = bus.interruptFlags.toInt() and bus.interruptEnabled.toInt()
+        val pending = bus.interruptFlags.toInt() and bus.interruptEnabled.toInt() and 0x1F
         val dispatched = pending != 0 && handleInterrupt(pending.countTrailingZeroBits())
         ime = ime or imeEnabler
         imeEnabler = false

@@ -166,7 +166,7 @@ class Bus(
             in 0xFEA0..0xFEFF -> Unit // Not usable
             in 0xFF00..0xFF7F -> { // IO
                 when (val ioAddress = addr and 0x7F) {
-                    0x00 -> joypad.write(value.toByte())
+                    0x00 -> joypad.write(value.toByte(), this)
                     0x02 -> handleSerialLink(value)
                     0x0F -> io[ioAddress] = (value or 0xE0).toByte() // todo use interrupt field
                     in 0x03..0x07 -> timer.write(ioAddress, value.toByte())
