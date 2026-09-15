@@ -5,9 +5,8 @@ import kotlin.experimental.and
 import kotlin.experimental.inv
 import kotlin.experimental.or
 
-class PPU(private val host: Host) {
+class PPU(private val host: Host, private val scheduler: Scheduler) {
 
-    private var scanlineCounter = 0
     private var windowInternalLine = 0
     private var windowTriggeredThisFrame = false
     private val frameBuffer = IntArray(160 * 144)
@@ -60,8 +59,8 @@ class PPU(private val host: Host) {
                 isEnabled = isBit(7, value)
 
                 if (!isEnabled) {
+                    scheduler.cancel(Event.PPU_MODE)
                     ly = 0
-                    scanlineCounter = 0
                     windowInternalLine = 0
                     windowTriggeredThisFrame = false
                     stat = (stat and 0x3.toByte().inv())
@@ -74,6 +73,7 @@ class PPU(private val host: Host) {
                 if (!wasEnabled and isEnabled) {
                     stat = stat or 2
                     handleCoincidenceFlag(bus)
+                    scheduler.schedule(Event.PPU_MODE, OAM_CYCLES)
                 }
             }
             0x41 -> {
@@ -119,28 +119,23 @@ class PPU(private val host: Host) {
         cachedPalette[3] = colors[palette.toInt() ushr 6 and 0x3]
     }
 
-    fun update(cycles: Int, bus: Bus) {
-        if (!isEnabled) return
-
-        scanlineCounter += cycles
-
+    fun onModeChange(bus: Bus) {
         when ((stat and 0x3).toInt()) {
-            Mode.OAM_MODE2 -> if (scanlineCounter >= OAM_CYCLES) {
-                scanlineCounter -= OAM_CYCLES
+            Mode.OAM_MODE2 -> {
                 updateStatMode(3)
+                scheduler.reschedule(Event.PPU_MODE, VRAM_CYCLES)
             }
 
-            Mode.VRAM_MODE3 -> if (scanlineCounter >= VRAM_CYCLES) {
-                scanlineCounter -= VRAM_CYCLES
+            Mode.VRAM_MODE3 -> {
                 updateStatMode(0)
                 drawScanLine(bus)
                 if (isBit(3, stat)) {
                     bus.requestInterrupt(LCD_INTERRUPT)
                 }
+                scheduler.reschedule(Event.PPU_MODE, HBLANK_CYCLES)
             }
 
-            Mode.HBLANK_MODE0 -> if (scanlineCounter >= HBLANK_CYCLES) {
-                scanlineCounter -= HBLANK_CYCLES
+            Mode.HBLANK_MODE0 -> {
                 ly++
                 handleCoincidenceFlag(bus)
 
@@ -153,16 +148,17 @@ class PPU(private val host: Host) {
                     windowInternalLine = 0
                     windowTriggeredThisFrame = false
                     host.render(frameBuffer)
+                    scheduler.reschedule(Event.PPU_MODE, SCANLINE_CYCLES)
                 } else { // not arrived yet so return to mode 2 / OAM
                     updateStatMode(2)
                     if (isBit(5, stat)) {
                         bus.requestInterrupt(LCD_INTERRUPT)
                     }
+                    scheduler.reschedule(Event.PPU_MODE, OAM_CYCLES)
                 }
             }
 
-            Mode.VBLANK_MODE1 -> if (scanlineCounter >= SCANLINE_CYCLES) {
-                scanlineCounter -= SCANLINE_CYCLES
+            Mode.VBLANK_MODE1 -> {
                 ly++
                 handleCoincidenceFlag(bus)
 
@@ -173,6 +169,9 @@ class PPU(private val host: Host) {
                     if (isBit(5, stat)) {
                         bus.requestInterrupt(LCD_INTERRUPT)
                     }
+                    scheduler.reschedule(Event.PPU_MODE, OAM_CYCLES)
+                } else {
+                    scheduler.reschedule(Event.PPU_MODE, SCANLINE_CYCLES)
                 }
             }
         }
@@ -380,7 +379,7 @@ class PPU(private val host: Host) {
     }
 
     fun reset() {
-        scanlineCounter = 0
+        if (isEnabled) scheduler.schedule(Event.PPU_MODE, OAM_CYCLES)
         windowInternalLine = 0
         windowTriggeredThisFrame = false
         frameBuffer.fill(color[0])

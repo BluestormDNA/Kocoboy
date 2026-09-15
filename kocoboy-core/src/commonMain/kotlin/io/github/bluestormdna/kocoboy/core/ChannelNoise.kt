@@ -19,7 +19,10 @@ class ChannelNoise {
     private var lfsrWidth = 0
     private var clockDivider = 0
 
-    private var period = 0
+    private var period = 8
+
+    private var lastClock: Long = 0
+    private var counter: Int = 8
 
     var nr44: Byte = 0
     private var trigger = false
@@ -27,8 +30,6 @@ class ChannelNoise {
 
     private var envelopeCounter = 0
     private var envelopeVolume = 0
-
-    private var counter: Int = 0
 
     private var lfsr = 0x7FFF
 
@@ -92,14 +93,20 @@ class ChannelNoise {
 
     fun isEnabled(): Boolean = isEnabled
 
-    fun tickSampleGenerator(cycles: Int) {
-        counter -= cycles
-
-        if (counter <= 0) {
-            counter = period
+    fun advanceTo(clock: Long) {
+        counter -= (clock - lastClock).toInt()
+        lastClock = clock
+        var guard = MAX_CATCH_UP
+        while (counter <= 0 && guard-- > 0) {
+            counter += period
             tickLFSR()
-            sample = if (isEnabled) (((lfsr and 0x1) xor 1) * envelopeVolume).toByte() else 0
         }
+        if (counter <= 0) counter = period
+        sample = if (isEnabled) (((lfsr and 0x1) xor 1) * envelopeVolume).toByte() else 0
+    }
+
+    fun resyncTo(clock: Long) {
+        lastClock = clock
     }
 
     private fun tickLFSR() {
@@ -110,5 +117,9 @@ class ChannelNoise {
             lfsr = lfsr and (1 shl 6).inv()
             lfsr = lfsr or (b shl 6)
         }
+    }
+
+    companion object {
+        private const val MAX_CATCH_UP = 32767
     }
 }

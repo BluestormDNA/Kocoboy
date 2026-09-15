@@ -1,93 +1,112 @@
 package io.github.bluestormdna.kocoboy.core
 
-class Timer {
+class Timer(private val scheduler: Scheduler) {
 
-    private var divCounter = 0
-    private var timerCounter = 0
+    private var divBase: Long = 0
 
-    // Timer IO Regs
-    // FF04 - DIV - Divider Register (R/W)
-    private var div: Byte = 0
+    private var tima = 0
+    private var timaAt: Long = 0
 
-    // FF05 - TIMA - Timer counter (R/W)
-    private var tima: Byte = 0
+    private var tma = 0
+    private var tac = 0
+    private var tacEnabled = false
+    private var tacFrequency = 0
 
-    // FF06 - TMA - Timer Modulo (R/W)
-    private var tma: Byte = 0
+    private val counter: Long get() = scheduler.clock - divBase
 
-    // FF07 - TAC - Timer Control (R/W)
-    private var tac: Byte = 0
-    private var tacEnabled: Boolean = false
-    private var tacFrequency: Int = 0
+    private fun timerSignal(): Boolean =
+        tacEnabled && (counter ushr SELECTED_BITS[tacFrequency]) and 1L == 1L
 
-    fun update(cycles: Int, bus: Bus) {
-        handleDivider(cycles)
-        handleTimer(cycles, bus)
+    private fun edgesSinceAnchor(): Int {
+        if (!tacEnabled) return 0
+        val period = TAC_PERIODS[tacFrequency]
+        return (counter / period - (timaAt - divBase) / period).toInt()
     }
 
-    private fun handleDivider(cycles: Int) {
-        divCounter += cycles
-        while (divCounter >= DMG_DIV_FREQ) {
-            divCounter -= DMG_DIV_FREQ
-            div++
-        }
+    private fun settle() {
+        tima += edgesSinceAnchor()
+        timaAt = scheduler.clock
     }
 
-    private fun handleTimer(cycles: Int, bus: Bus) {
-        if (tacEnabled) {
-            timerCounter += cycles
-            while (timerCounter >= TAC_FREQUENCIES[tacFrequency]) {
-                timerCounter -= TAC_FREQUENCIES[tacFrequency]
-                tima++
+    fun onOverflow() {
+        val at = scheduler.firedAt
+        tima = 0
+        timaAt = at
+        scheduler.scheduleAt(Event.TIMER_RELOAD, at + RELOAD_DELAY)
+    }
 
-                if (tima == TRIGGER) {
-                    bus.requestInterrupt(TIMER_INTERRUPT)
-                    tima = tma
-                }
-            }
+    fun onReload(bus: Bus) {
+        tima = tma
+        bus.requestInterrupt(TIMER_INTERRUPT)
+        scheduleOverflow()
+    }
+
+    private fun incrementTima() {
+        tima = (tima + 1) and 0xFF
+        if (tima == 0) scheduler.schedule(Event.TIMER_RELOAD, RELOAD_DELAY)
+    }
+
+    private fun scheduleOverflow() {
+        if (!tacEnabled) {
+            scheduler.cancel(Event.TIMER_OVERFLOW)
+            return
         }
+        val period = TAC_PERIODS[tacFrequency]
+        val edge = (timaAt - divBase) / period + (0x100 - tima)
+        scheduler.scheduleAt(Event.TIMER_OVERFLOW, divBase + edge * period)
     }
 
     fun write(address: Int, value: Byte) {
         when (address) {
             4 -> {
-                div = 0
-                divCounter = 0
-                timerCounter = 0
+                settle()
+                val wasHigh = timerSignal()
+                divBase = scheduler.clock
+                if (wasHigh) incrementTima()
+                scheduleOverflow()
             }
-            5 -> tima = value
-            6 -> tma = value
+            5 -> {
+                scheduler.cancel(Event.TIMER_RELOAD)
+                tima = value.toInt() and 0xFF
+                timaAt = scheduler.clock
+                scheduleOverflow()
+            }
+            6 -> tma = value.toInt() and 0xFF
             7 -> {
-                tac = value
+                settle()
+                val wasHigh = timerSignal()
+                tac = value.toInt()
                 tacEnabled = value.toInt() and 0x4 != 0
                 tacFrequency = value.toInt() and 0x3
+                if (wasHigh && !timerSignal()) incrementTima()
+                scheduleOverflow()
             }
         }
     }
 
     fun read(address: Int): Byte = when (address) {
-        4 -> div
-        5 -> tima
-        6 -> tma
-        7 -> tac
+        4 -> (counter ushr 8).toByte()
+        5 -> (tima + edgesSinceAnchor()).toByte()
+        6 -> tma.toByte()
+        7 -> (tac or 0xF8).toByte()
         else -> 0xFF.toByte()
     }
 
     fun reset() {
-        divCounter = 0
-        timerCounter = 0
+        divBase = scheduler.clock
+        tima = 0
+        timaAt = scheduler.clock
+        tma = 0
+        tac = 0
+        tacEnabled = false
+        tacFrequency = 0
+        scheduleOverflow()
     }
 
     companion object {
-        private const val DMG_DIV_FREQ = 256 // 16384Hz
-        private val TAC_FREQUENCIES = arrayOf(1024, 16, 64, 256)
-
-        // 00: CPU Clock / 1024 (DMG, CGB:   4096 Hz, SGB:   ~4194 Hz)
-        // 01: CPU Clock / 16   (DMG, CGB: 262144 Hz, SGB: ~268400 Hz)
-        // 10: CPU Clock / 64   (DMG, CGB:  65536 Hz, SGB:  ~67110 Hz)
-        // 11: CPU Clock / 256  (DMG, CGB:  16384 Hz, SGB:  ~16780 Hz)
-        // Bit 2: Timer    Interrupt Request (INT 50h)  (1=Request)
+        private val TAC_PERIODS = intArrayOf(1024, 16, 64, 256)
+        private val SELECTED_BITS = intArrayOf(9, 3, 5, 7)
+        private const val RELOAD_DELAY = 4
         private const val TIMER_INTERRUPT: Byte = 0x04
-        private const val TRIGGER: Byte = 0xFF.toByte()
     }
 }

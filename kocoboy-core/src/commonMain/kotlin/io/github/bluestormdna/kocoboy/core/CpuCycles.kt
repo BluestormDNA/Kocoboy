@@ -28,6 +28,7 @@ object CpuCycles {
         const val JP = 4
         const val CALL = 12
         const val JR = 4
+        const val INTERRUPT_DISPATCH = 20
     }
 
     val opcodeCBCycles = intArrayOf(

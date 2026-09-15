@@ -23,10 +23,11 @@ import kotlinx.coroutines.yield
 
 class Emulator(
     private val host: Host,
-    private val ppu: PPU = PPU(host),
-    private val apu: APU = APU(host),
+    private val scheduler: Scheduler = Scheduler(),
+    private val ppu: PPU = PPU(host, scheduler),
+    private val apu: APU = APU(host, scheduler),
     private val joypad: Joypad = Joypad(),
-    private val timer: Timer = Timer(),
+    private val timer: Timer = Timer(scheduler),
     private val bus: Bus = Bus(apu, joypad, timer, ppu),
     private val cpu: CPU = CPU(bus),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
@@ -63,6 +64,9 @@ class Emulator(
     }
 
     private fun reset() {
+        scheduler.reset()
+        frameEnd = 0
+        apu.start()
         cpu.reset()
         bus.reset()
         ppu.reset()
@@ -87,7 +91,6 @@ class Emulator(
         emulatorJob = scope.launch {
             previous.join()
             reset()
-            frameCycles = 0
             internalPowerSwitch = true
             _poweredOn.value = true
             try {
@@ -101,20 +104,24 @@ class Emulator(
         }
     }
 
-    // overshoot of the last frame, carried into the next one
-    private var frameCycles = 0
+    private var frameEnd = 0L
 
     private fun runFrame() {
-        var cycles = frameCycles
-        while (cycles < CYCLES_PER_FRAME) {
-            val step = cpu.execute()
-            cycles += step
-            timer.update(step, bus)
-            ppu.update(step, bus)
-            apu.update(step)
-            handleInterrupts()
+        frameEnd += CYCLES_PER_FRAME
+        while (scheduler.clock < frameEnd) {
+            scheduler.advance(cpu.step())
+            while (scheduler.clock >= scheduler.nextDeadline) dispatch(scheduler.pollDue())
         }
-        frameCycles = cycles - CYCLES_PER_FRAME
+    }
+
+    private fun dispatch(event: Int) {
+        when (event) {
+            Event.PPU_MODE -> ppu.onModeChange(bus)
+            Event.TIMER_OVERFLOW -> timer.onOverflow()
+            Event.TIMER_RELOAD -> timer.onReload(bus)
+            Event.APU_SEQUENCER -> apu.onFrameSequencer()
+            Event.APU_SAMPLE -> apu.onSample()
+        }
     }
 
     private suspend fun CoroutineScope.runFrames() {
@@ -135,15 +142,6 @@ class Emulator(
 
     fun handleInputRelease(input: JoypadInputs) {
         joypad.release(input.bits)
-    }
-
-    private fun handleInterrupts() {
-        val interrupts = bus.interruptFlags.toInt() and bus.interruptEnabled.toInt()
-        if (interrupts != 0) {
-            val interrupt = interrupts.countTrailingZeroBits()
-            cpu.handleInterrupt(interrupt)
-        }
-        cpu.updateIme()
     }
 
     companion object {

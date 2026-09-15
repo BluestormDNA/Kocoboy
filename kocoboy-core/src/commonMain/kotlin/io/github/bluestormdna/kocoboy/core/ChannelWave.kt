@@ -21,10 +21,10 @@ class ChannelWave {
     private var trigger = false
     private var lengthEnable = false
 
-    private var counter: Int = 0
-    private var waveIndex: Int = 0
-    private var nibble = 1
-    private var freq: UShort = 0u
+    private var lastClock: Long = 0
+    private var periodCycles: Int = 2
+    private var counter: Int = 2
+    private var wavePos: Int = 0
 
     var wavePatternRAM = UByteArray(16)
     var sample: Byte = 0
@@ -47,6 +47,7 @@ class ChannelWave {
 
     fun setNRx3PeriodLow(value: Byte) {
         nrx3PeriodLo = value.toUByte()
+        reloadPeriod()
     }
 
     fun setNRx4PeriodHiControl(value: Byte) {
@@ -54,6 +55,7 @@ class ChannelWave {
         trigger = (value.toUInt() and 0x80u) != 0u
         lengthEnable = (value.toUInt() and 0x40u) != 0u
         periodHi = (value.toUInt() and 0x7u).toUByte()
+        reloadPeriod()
 
         if (trigger) {
             trigger = false
@@ -64,9 +66,9 @@ class ChannelWave {
     private fun handleTrigger() {
         isEnabled = dacOn
         if (length == 0) length = 256
-        freq = (periodHi.toUInt() shl 8 or nrx3PeriodLo.toUInt()).toUShort()
-        waveIndex = 0
-        nibble = 1
+        reloadPeriod()
+        counter = periodCycles
+        wavePos = 0
     }
 
     fun tickLength() {
@@ -76,24 +78,31 @@ class ChannelWave {
         }
     }
 
-    fun tickSampleGenerator(cycles: Int) {
-        counter -= cycles
-
+    fun advanceTo(clock: Long) {
+        counter -= (clock - lastClock).toInt()
+        lastClock = clock
         if (counter <= 0) {
-            freq = (periodHi.toUInt() shl 8 or nrx3PeriodLo.toUInt()).toUShort()
-            counter = ((2048u - freq) * 2u).toInt()
-
-            val wave = (wavePatternRAM[waveIndex].toInt() ushr (4 * nibble)) and 0xF
-            nibble = nibble xor 1
-            waveIndex = (waveIndex + nibble) and 0xF
-
-            if (isEnabled) {
-                val volumeShift = volume - 1 and 0xF
-                sample = (wave shr volumeShift).toByte()
-            } else {
-                sample = 0
-            }
+            val steps = -counter / periodCycles + 1
+            counter += steps * periodCycles
+            wavePos = (wavePos + steps) and 0x1F
         }
+        if (isEnabled) {
+            val shift = if (wavePos and 1 == 0) 4 else 0
+            val wave = (wavePatternRAM[wavePos ushr 1].toInt() ushr shift) and 0xF
+            val volumeShift = volume - 1 and 0xF
+            sample = (wave shr volumeShift).toByte()
+        } else {
+            sample = 0
+        }
+    }
+
+    private fun reloadPeriod() {
+        val freq = (periodHi.toUInt() shl 8 or nrx3PeriodLo.toUInt()).toUShort()
+        periodCycles = ((2048u - freq) * 2u).toInt()
+    }
+
+    fun resyncTo(clock: Long) {
+        lastClock = clock
     }
 
     fun isEnabled(): Boolean = isEnabled

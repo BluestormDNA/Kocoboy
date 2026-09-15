@@ -9,7 +9,9 @@ class ChannelPulse {
 
     private var isEnabled = false
 
-    private var counter: Long = 0
+    private var lastClock: Long = 0
+    private var periodCycles: Int = 4
+    private var counter: Int = 4
     private var freq: UShort = 0u
     private var wavePatternPosition = 0
     private var envelopeCounter: Int = 0
@@ -62,6 +64,7 @@ class ChannelPulse {
 
     fun setNRx3PeriodLow(value: Byte) {
         nrx3periodLo = value.toUByte()
+        reloadPeriod()
     }
 
     fun setNRx4PeriodHiControl(value: Byte) {
@@ -69,6 +72,7 @@ class ChannelPulse {
         trigger = (value.toInt() and 0x80) != 0
         lengthEnable = (value.toInt() and 0x40) != 0
         periodHi = (value.toUInt() and 0x7u).toUByte()
+        reloadPeriod()
 
         if (trigger) {
             trigger = false
@@ -80,7 +84,8 @@ class ChannelPulse {
     private fun handleTrigger() {
         isEnabled = dacOn
         if (length == 0) length = 64
-        freq = (periodHi.toUInt() shl 8 or nrx3periodLo.toUInt()).toUShort()
+        reloadPeriod()
+        counter = periodCycles
         envelopeCounter = envelopeSweep
         envelopeVolume = envelopeInitialVolume
 
@@ -103,6 +108,7 @@ class ChannelPulse {
                 if (sweep <= 2047 && sweepShift > 0) {
                     periodHi = (sweep ushr 8).toUByte()
                     nrx3periodLo = (sweep and 0xFF).toUByte()
+                    reloadPeriod()
 
                     sweep()
                 }
@@ -130,24 +136,31 @@ class ChannelPulse {
         }
     }
 
-    fun tickSampleGenerator(cycles: Int) {
-        counter -= cycles
-
+    fun advanceTo(clock: Long) {
+        counter -= (clock - lastClock).toInt()
+        lastClock = clock
         if (counter <= 0) {
-            freq = (periodHi.toUInt() shl 8 or nrx3periodLo.toUInt()).toUShort()
-            counter = ((2048u - freq) * 4u).toLong()
-
-            wavePatternPosition = (wavePatternPosition + 1) and 0x7
-            val wave = waveForm[wavePatternDuty]
-            val output = (wave.toInt() ushr wavePatternPosition) and 0x1
-
-            sample = if (isEnabled) (output * envelopeVolume).toByte() else 0
+            val steps = -counter / periodCycles + 1
+            counter += steps * periodCycles
+            wavePatternPosition = (wavePatternPosition + steps) and 0x7
         }
+        val wave = waveForm[wavePatternDuty]
+        val output = (wave.toInt() ushr wavePatternPosition) and 0x1
+        sample = if (isEnabled) (output * envelopeVolume).toByte() else 0
+    }
+
+    private fun reloadPeriod() {
+        freq = (periodHi.toUInt() shl 8 or nrx3periodLo.toUInt()).toUShort()
+        periodCycles = ((2048u - freq) * 4u).toInt()
     }
 
     fun isEnabled(): Boolean = isEnabled
 
     fun disable() {
         isEnabled = false
+    }
+
+    fun resyncTo(clock: Long) {
+        lastClock = clock
     }
 }

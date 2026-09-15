@@ -3,7 +3,7 @@ package io.github.bluestormdna.kocoboy.core
 import io.github.bluestormdna.kocoboy.host.Host
 import kotlin.experimental.or
 
-class APU(private val host: Host) {
+class APU(private val host: Host, private val scheduler: Scheduler) {
     private val bufferSize = 4096
     private var bufferPointer = 0
     private val sampleBuffer = ByteArray(bufferSize)
@@ -32,78 +32,97 @@ class APU(private val host: Host) {
     private var nr52: Byte = 0
     private var apuEnabled = false
 
-    private var sampleCounter = 0
-    private var frameSequencerCounter = 0
     private var frameSequencerStep = 0
 
-    fun update(cycles: Int) {
-        sampleCounter -= cycles
-        frameSequencerCounter -= cycles
+    private val clock: Long get() = scheduler.clock
 
-        channel1.tickSampleGenerator(cycles)
-        channel2.tickSampleGenerator(cycles)
-        channel3.tickSampleGenerator(cycles)
-        channel4.tickSampleGenerator(cycles)
+    fun start() {
+        scheduler.schedule(Event.APU_SEQUENCER, FRAME_SEQUENCER_PERIOD)
+        scheduler.schedule(Event.APU_SAMPLE, SAMPLE_PERIOD)
+        resyncChannels()
+    }
 
-        if (frameSequencerCounter <= 0) {
-            frameSequencerCounter += 8192 // DMG / 515HZ
+    private fun resyncChannels() {
+        channel1.resyncTo(clock)
+        channel2.resyncTo(clock)
+        channel3.resyncTo(clock)
+        channel4.resyncTo(clock)
+    }
 
-            if ((frameSequencerStep and 0x1) == 0) {
-                channel1.tickLength()
-                channel2.tickLength()
-                channel3.tickLength()
-                channel4.tickLength()
-            }
+    private fun settleChannels() {
+        channel1.advanceTo(clock)
+        channel2.advanceTo(clock)
+        channel3.advanceTo(clock)
+        channel4.advanceTo(clock)
+    }
 
-            if (frameSequencerStep == 2 || frameSequencerStep == 6) {
-                channel1.tickSweep()
-            }
+    fun onFrameSequencer() {
+        scheduler.reschedule(Event.APU_SEQUENCER, FRAME_SEQUENCER_PERIOD)
 
-            if (frameSequencerStep == 7) {
-                channel1.tickEnvelope()
-                channel2.tickEnvelope()
-                channel4.tickEnvelope()
-            }
-
-            frameSequencerStep = (frameSequencerStep + 1) and 0x7
+        if ((frameSequencerStep and 0x1) == 0) {
+            channel1.tickLength()
+            channel2.tickLength()
+            channel3.tickLength()
+            channel4.tickLength()
         }
 
-        if (sampleCounter <= 0) {
-            sampleCounter += 95 // DMG / 44100Hz
+        if (frameSequencerStep == 2 || frameSequencerStep == 6) {
+            channel1.advanceTo(clock)
+            channel1.tickSweep()
+        }
 
-            if (!apuEnabled) return
+        if (frameSequencerStep == 7) {
+            channel1.tickEnvelope()
+            channel2.tickEnvelope()
+            channel4.tickEnvelope()
+        }
 
-            val ch1LSample = if (channel1L) channel1.sample else 0
-            val ch1RSample = if (channel1R) channel1.sample else 0
+        frameSequencerStep = (frameSequencerStep + 1) and 0x7
+    }
 
-            val ch2LSample = if (channel2L) channel2.sample else 0
-            val ch2RSample = if (channel2R) channel2.sample else 0
+    fun onSample() {
+        scheduler.reschedule(Event.APU_SAMPLE, SAMPLE_PERIOD)
+        if (!apuEnabled) return
 
-            val ch3LSample = if (channel3L) channel3.sample else 0
-            val ch3RSample = if (channel3R) channel3.sample else 0
+        settleChannels()
 
-            val ch4LSample = if (channel4L) channel4.sample else 0
-            val ch4RSample = if (channel4R) channel4.sample else 0
+        val ch1LSample = if (channel1L) channel1.sample else 0
+        val ch1RSample = if (channel1R) channel1.sample else 0
 
-            val sumL = ch1LSample + ch2LSample + ch3LSample + ch4LSample
-            val sumR = ch1RSample + ch2RSample + ch3RSample + ch4RSample
+        val ch2LSample = if (channel2L) channel2.sample else 0
+        val ch2RSample = if (channel2R) channel2.sample else 0
 
-            val mixedL = sumL * (masterVolL + 1) / 8 + 128
-            val mixedR = sumR * (masterVolR + 1) / 8 + 128
+        val ch3LSample = if (channel3L) channel3.sample else 0
+        val ch3RSample = if (channel3R) channel3.sample else 0
 
-            sampleBuffer[bufferPointer++] = mixedL.toByte()
-            sampleBuffer[bufferPointer++] = mixedR.toByte()
+        val ch4LSample = if (channel4L) channel4.sample else 0
+        val ch4RSample = if (channel4R) channel4.sample else 0
 
-            if (bufferPointer >= bufferSize) {
-                host.play(sampleBuffer)
-                bufferPointer = 0
-            }
+        val sumL = ch1LSample + ch2LSample + ch3LSample + ch4LSample
+        val sumR = ch1RSample + ch2RSample + ch3RSample + ch4RSample
+
+        val mixedL = sumL * (masterVolL + 1) / 8 + 128
+        val mixedR = sumR * (masterVolR + 1) / 8 + 128
+
+        sampleBuffer[bufferPointer++] = mixedL.toByte()
+        sampleBuffer[bufferPointer++] = mixedR.toByte()
+
+        if (bufferPointer >= bufferSize) {
+            host.play(sampleBuffer)
+            bufferPointer = 0
         }
     }
 
     @OptIn(ExperimentalUnsignedTypes::class)
     fun write(addr: Int, value: Byte) {
         if (!apuEnabled && addr < 0x26) return
+
+        when (addr) {
+            in 0x10..0x14 -> channel1.advanceTo(clock)
+            in 0x16..0x19 -> channel2.advanceTo(clock)
+            in 0x1A..0x1E -> channel3.advanceTo(clock)
+            in 0x20..0x23 -> channel4.advanceTo(clock)
+        }
 
         when (addr) {
             0x10 -> channel1.sweep(value)
@@ -206,10 +225,15 @@ class APU(private val host: Host) {
         if (wasEnabled && !apuEnabled) {
             resetAPU()
         }
+
+        if (!wasEnabled && apuEnabled) {
+            resyncChannels()
+        }
     }
 
     // todo check if further in-channel clean-up needed
     private fun resetAPU() {
+        settleChannels()
         channel1.sweep(0)
         channel1.setNRx1LengthTimerDutyCycle(0)
         channel1.setNRx2EnvelopeVolume(0)
@@ -236,5 +260,10 @@ class APU(private val host: Host) {
 
         setNR50MasterVolume(0)
         setNR51Panning(0)
+    }
+
+    companion object {
+        private const val FRAME_SEQUENCER_PERIOD = 8192
+        private const val SAMPLE_PERIOD = 95
     }
 }

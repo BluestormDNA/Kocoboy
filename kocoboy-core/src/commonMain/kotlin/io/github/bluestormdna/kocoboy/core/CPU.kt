@@ -769,22 +769,25 @@ class CPU(private val bus: Bus) {
         }
     }
 
-    fun handleInterrupt(b: Int) {
+    fun step(): Int {
+        val pending = bus.interruptFlags.toInt() and bus.interruptEnabled.toInt()
+        val dispatched = pending != 0 && handleInterrupt(pending.countTrailingZeroBits())
+        ime = ime or imeEnabler
+        imeEnabler = false
+        return if (dispatched) CpuCycles.ControlFlowCycles.INTERRUPT_DISPATCH else execute()
+    }
+
+    private fun handleInterrupt(b: Int): Boolean {
         if (halted) {
             PC++
             halted = false
         }
-        if (ime) {
-            push(PC)
-            PC = (0x40 + (8 * b))
-            ime = false
-            bus.clearInterrupt(b)
-        }
-    }
-
-    fun updateIme() {
-        ime = ime or imeEnabler
-        imeEnabler = false
+        if (!ime) return false
+        push(PC)
+        PC = (0x40 + (8 * b))
+        ime = false
+        bus.clearInterrupt(b)
+        return true
     }
 
     private fun addSigned8(register: Int, value: Int): Int {
