@@ -126,12 +126,21 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
         imeEnabler = false
         halted = false
         haltBug = false
+        idlePC = -1
     }
 
     private var ime: Boolean = false
     private var imeEnabler: Boolean = false
     private var halted: Boolean = false
     private var haltBug: Boolean = false
+
+    // State at the last backward JR, what the next idle loop pass is compared against
+    private var idlePC = -1
+    private var idleRegisters = 0L
+    private var idleSP = 0
+    private var idleIme = false
+    private var idleClock = 0L
+    private var idleDeadline = 0L
 
     private inline fun Int.hi() = this shr 8 and 0xFF
 
@@ -904,11 +913,38 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
     private fun jr(flag: Boolean) {
         if (flag) {
             val rel = fetch().toByte()
+            if (rel < 0) skipIdlePasses()
             PC += rel
             cycles += CpuCycles.ControlFlowCycles.JR
         } else {
             PC++
         }
+    }
+
+    // A pass back to this JR with the same state and no side effect repeats exactly
+    private fun skipIdlePasses() {
+        var at = scheduler.clock
+        val registers = (AF.toLong() shl 48) or (BC.toLong() shl 32) or
+            (DE.toLong() shl 16) or HL.toLong()
+        val deadline = scheduler.nextDeadline
+        if (!bus.sideEffect && PC == idlePC && registers == idleRegisters && SP == idleSP &&
+            ime == idleIme && deadline == idleDeadline
+        ) {
+            // Charge every whole pass that ends before the next event at once
+            val pass = at - idleClock
+            val skipped = (minOf(deadline, scheduler.frameEnd) - 1 - at) / pass * pass
+            if (skipped > 0) {
+                cycles += skipped.toInt()
+                at += skipped
+            }
+        }
+        bus.sideEffect = false
+        idlePC = PC
+        idleRegisters = registers
+        idleSP = SP
+        idleIme = ime
+        idleClock = at
+        idleDeadline = deadline
     }
 
     private fun dad(value: Int) {

@@ -77,6 +77,9 @@ class Bus(
     val interruptFlags: Byte get() = io[0x0F]
     val interruptEnabled: Byte get() = hRam[0x7F]
 
+    // Set by every write and every clock derived read, the only ways an idle loop pass can differ
+    var sideEffect = false
+
     init {
         initializeRegisters()
     }
@@ -139,6 +142,11 @@ class Bus(
             in 0xFF00..0xFF7F -> {
                 when (val ioAddress = addr and 0x7F) {
                     0x00 -> joypad.read().toInt() and 0xFF
+                    // DIV and TIMA follow the clock
+                    0x04, 0x05 -> {
+                        sideEffect = true
+                        timer.read(ioAddress).toInt() and 0xFF
+                    }
                     in 0x03..0x07 -> timer.read(ioAddress).toInt() and 0xFF
                     in 0x10..0x3F -> apu.read(ioAddress).toInt() and 0xFF
                     in 0x40..0x4B -> ppu.read(ioAddress).toInt() and 0xFF
@@ -154,6 +162,7 @@ class Bus(
         // todo address int to unsigned mess
         val address = addr.toUShort()
         val byte = value.toUByte()
+        sideEffect = true
         when (addr) {
             in 0x0000..0x7FFF -> cartridge.writeROM(address, byte)
             in 0x8000..0x9FFF -> vRam[addr and 0x1FFF] = value.toByte()
