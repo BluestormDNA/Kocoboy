@@ -119,7 +119,6 @@ class Emulator(
             Event.TIMER_OVERFLOW -> timer.onOverflow()
             Event.TIMER_RELOAD -> timer.onReload(bus)
             Event.APU_SEQUENCER -> apu.onFrameSequencer()
-            Event.APU_SAMPLE -> apu.onSample()
         }
     }
 

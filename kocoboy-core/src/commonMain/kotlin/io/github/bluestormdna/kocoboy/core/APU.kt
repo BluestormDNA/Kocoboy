@@ -36,9 +36,11 @@ class APU(private val host: Host, private val scheduler: Scheduler) {
 
     private val clock: Long get() = scheduler.clock
 
+    private var nextSample: Long = 0
+
     fun start() {
         scheduler.schedule(Event.APU_SEQUENCER, FRAME_SEQUENCER_PERIOD)
-        scheduler.schedule(Event.APU_SAMPLE, SAMPLE_PERIOD)
+        nextSample = clock + SAMPLE_PERIOD
         resyncChannels()
     }
 
@@ -57,6 +59,9 @@ class APU(private val host: Host, private val scheduler: Scheduler) {
     }
 
     fun onFrameSequencer() {
+        val at = scheduler.firedAt
+        // The samples before the step still hear the old length, sweep and envelope
+        renderSamples(at)
         scheduler.reschedule(Event.APU_SEQUENCER, FRAME_SEQUENCER_PERIOD)
 
         if ((frameSequencerStep and 0x1) == 0) {
@@ -67,7 +72,7 @@ class APU(private val host: Host, private val scheduler: Scheduler) {
         }
 
         if (frameSequencerStep == 2 || frameSequencerStep == 6) {
-            channel1.advanceTo(clock)
+            channel1.advanceTo(at)
             channel1.tickSweep()
         }
 
@@ -80,42 +85,58 @@ class APU(private val host: Host, private val scheduler: Scheduler) {
         frameSequencerStep = (frameSequencerStep + 1) and 0x7
     }
 
-    fun onSample() {
-        scheduler.reschedule(Event.APU_SAMPLE, SAMPLE_PERIOD)
-        if (!apuEnabled) return
+    // Every sample due by until, each mixed at its own instant
+    private fun renderSamples(until: Long) {
+        if (!apuEnabled) {
+            // Powered off outputs nothing, only the sample phase moves on
+            if (nextSample <= until) {
+                nextSample += ((until - nextSample) / SAMPLE_PERIOD + 1) * SAMPLE_PERIOD
+            }
+            return
+        }
 
-        settleChannels()
+        while (nextSample <= until) {
+            channel1.advanceTo(nextSample)
+            channel2.advanceTo(nextSample)
+            channel3.advanceTo(nextSample)
+            channel4.advanceTo(nextSample)
 
-        val ch1LSample = if (channel1L) channel1.sample else 0
-        val ch1RSample = if (channel1R) channel1.sample else 0
+            val ch1LSample = if (channel1L) channel1.sample else 0
+            val ch1RSample = if (channel1R) channel1.sample else 0
 
-        val ch2LSample = if (channel2L) channel2.sample else 0
-        val ch2RSample = if (channel2R) channel2.sample else 0
+            val ch2LSample = if (channel2L) channel2.sample else 0
+            val ch2RSample = if (channel2R) channel2.sample else 0
 
-        val ch3LSample = if (channel3L) channel3.sample else 0
-        val ch3RSample = if (channel3R) channel3.sample else 0
+            val ch3LSample = if (channel3L) channel3.sample else 0
+            val ch3RSample = if (channel3R) channel3.sample else 0
 
-        val ch4LSample = if (channel4L) channel4.sample else 0
-        val ch4RSample = if (channel4R) channel4.sample else 0
+            val ch4LSample = if (channel4L) channel4.sample else 0
+            val ch4RSample = if (channel4R) channel4.sample else 0
 
-        val sumL = ch1LSample + ch2LSample + ch3LSample + ch4LSample
-        val sumR = ch1RSample + ch2RSample + ch3RSample + ch4RSample
+            val sumL = ch1LSample + ch2LSample + ch3LSample + ch4LSample
+            val sumR = ch1RSample + ch2RSample + ch3RSample + ch4RSample
 
-        val mixedL = sumL * (masterVolL + 1) / 8 + 128
-        val mixedR = sumR * (masterVolR + 1) / 8 + 128
+            val mixedL = sumL * (masterVolL + 1) / 8 + 128
+            val mixedR = sumR * (masterVolR + 1) / 8 + 128
 
-        sampleBuffer[bufferPointer++] = mixedL.toByte()
-        sampleBuffer[bufferPointer++] = mixedR.toByte()
+            sampleBuffer[bufferPointer++] = mixedL.toByte()
+            sampleBuffer[bufferPointer++] = mixedR.toByte()
 
-        if (bufferPointer >= bufferSize) {
-            host.play(sampleBuffer)
-            bufferPointer = 0
+            if (bufferPointer >= bufferSize) {
+                host.play(sampleBuffer)
+                bufferPointer = 0
+            }
+
+            nextSample += SAMPLE_PERIOD
         }
     }
 
     @OptIn(ExperimentalUnsignedTypes::class)
     fun write(addr: Int, value: Byte) {
         if (!apuEnabled && addr < 0x26) return
+
+        // A write changes what later samples hear, so the ones already due go out first
+        renderSamples(clock)
 
         when (addr) {
             in 0x10..0x14 -> channel1.advanceTo(clock)
