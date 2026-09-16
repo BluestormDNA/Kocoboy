@@ -28,7 +28,7 @@ class Emulator(
     private val apu: APU = APU(host, scheduler),
     private val joypad: Joypad = Joypad(),
     private val timer: Timer = Timer(scheduler),
-    private val bus: Bus = Bus(apu, joypad, timer, ppu),
+    private val bus: Bus = Bus(apu, joypad, timer, ppu, scheduler),
     private val cpu: CPU = CPU(bus, scheduler),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
 ) {
@@ -109,6 +109,11 @@ class Emulator(
         joypad.latch(bus)
         while (scheduler.clock < scheduler.frameEnd) {
             scheduler.advance(cpu.step())
+            if (cpu.interruptsQuiet()) {
+                // Nothing can fire before the next event, so run bare instructions up to it
+                scheduler.limit = minOf(scheduler.nextDeadline, scheduler.frameEnd)
+                while (scheduler.clock < scheduler.limit) scheduler.advance(cpu.execute())
+            }
             while (scheduler.clock >= scheduler.nextDeadline) dispatch(scheduler.pollDue())
         }
     }

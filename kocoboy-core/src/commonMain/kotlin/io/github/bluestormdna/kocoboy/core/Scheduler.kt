@@ -26,11 +26,15 @@ class Scheduler {
 
     var frameEnd: Long = 0
 
+    // Instructions run without the interrupt check below this, 0 sends the next one through step()
+    var limit: Long = 0
+
     fun reset() {
         clock = 0
         deadlines.fill(Long.MAX_VALUE)
         firedAt = 0
         frameEnd = 0
+        limit = 0
         nextDeadline = Long.MAX_VALUE
         nextEvent = -1
     }
@@ -50,6 +54,7 @@ class Scheduler {
             deadline < nextDeadline -> {
                 nextDeadline = deadline
                 nextEvent = event
+                if (deadline < limit) limit = deadline
             }
             previous == nextDeadline -> recomputeNext()
         }

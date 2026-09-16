@@ -11,6 +11,7 @@ class Bus(
     private val joypad: Joypad,
     private val timer: Timer,
     private val ppu: PPU,
+    private val scheduler: Scheduler,
 ) {
 
     private val bootRoom = ByteArray(0x100)
@@ -177,7 +178,10 @@ class Bus(
                 when (val ioAddress = addr and 0x7F) {
                     0x00 -> joypad.write(value.toByte(), this)
                     0x02 -> handleSerialLink(value)
-                    0x0F -> io[ioAddress] = (value or 0xE0).toByte() // todo use interrupt field
+                    0x0F -> { // todo use interrupt field
+                        io[ioAddress] = (value or 0xE0).toByte()
+                        scheduler.limit = 0
+                    }
                     in 0x03..0x07 -> timer.write(ioAddress, value.toByte())
                     in 0x10..0x3F -> apu.write(ioAddress, value.toByte())
                     // Lyc can cause interrupts on write
@@ -186,7 +190,11 @@ class Bus(
                 }
             }
 
-            in 0xFF80..0xFFFF -> hRam[addr and 0x7F] = value.toByte()
+            0xFFFF -> {
+                hRam[0x7F] = value.toByte()
+                scheduler.limit = 0
+            }
+            in 0xFF80..0xFFFE -> hRam[addr and 0x7F] = value.toByte()
             else -> throw IllegalStateException(
                 "Attempting to write ${byte.toHexString()} to ${addr.toHexString()}",
             )
@@ -225,6 +233,7 @@ class Bus(
 
     fun requestInterrupt(interrupt: Byte) {
         io[0x0F] = io[0x0F] or interrupt
+        scheduler.limit = 0
     }
 
     fun reset() {

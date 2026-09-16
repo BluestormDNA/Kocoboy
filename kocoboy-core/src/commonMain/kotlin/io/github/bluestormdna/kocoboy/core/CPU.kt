@@ -421,6 +421,7 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
             0xD9 -> {
                 PC = pop() // ret(true) Unconditional return shortcut as ret true adds cycles
                 ime = true
+                scheduler.limit = 0
             }
 
             0xDA -> jp(flagC)
@@ -794,6 +795,12 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
         return if (dispatched) CpuCycles.ControlFlowCycles.INTERRUPT_DISPATCH else execute()
     }
 
+    // True while the interrupt check and the EI delay in step() would both do nothing
+    fun interruptsQuiet(): Boolean {
+        val pending = bus.interruptFlags.toInt() and bus.interruptEnabled.toInt() and 0x1F
+        return !imeEnabler && (pending == 0 || !(ime || halted))
+    }
+
     private fun handleInterrupt(b: Int): Boolean {
         if (halted) {
             PC++
@@ -857,6 +864,7 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
     private fun ei() {
         imeEnabler = true
+        scheduler.limit = 0
     }
 
     private fun di() {
