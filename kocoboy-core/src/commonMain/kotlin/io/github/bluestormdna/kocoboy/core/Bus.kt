@@ -247,6 +247,7 @@ class Bus(
     }
 
     fun reset() {
+        sideEffect = false
         cleanUp()
         initializeRegisters()
     }

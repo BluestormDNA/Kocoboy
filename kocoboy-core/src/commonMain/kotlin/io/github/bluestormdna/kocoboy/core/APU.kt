@@ -8,10 +8,10 @@ class APU(private val host: Host, private val scheduler: Scheduler) {
     private var bufferPointer = 0
     private val sampleBuffer = ByteArray(bufferSize)
 
-    private val channel1 = ChannelPulse()
-    private val channel2 = ChannelPulse()
-    private val channel3 = ChannelWave()
-    private val channel4 = ChannelNoise()
+    private var channel1 = ChannelPulse()
+    private var channel2 = ChannelPulse()
+    private var channel3 = ChannelWave()
+    private var channel4 = ChannelNoise()
 
     private var nr50: Byte = 0
     private var vinL = 0
@@ -37,6 +37,32 @@ class APU(private val host: Host, private val scheduler: Scheduler) {
     private val clock: Long get() = scheduler.clock
 
     private var nextSample: Long = 0
+
+    fun reset() {
+        channel1 = ChannelPulse()
+        channel2 = ChannelPulse()
+        channel3 = ChannelWave()
+        channel4 = ChannelNoise()
+        nr50 = 0
+        vinL = 0
+        vinR = 0
+        masterVolL = 0
+        masterVolR = 0
+        nr51 = 0
+        channel1L = false
+        channel2L = false
+        channel3L = false
+        channel4L = false
+        channel1R = false
+        channel2R = false
+        channel3R = false
+        channel4R = false
+        nr52 = 0
+        apuEnabled = false
+        frameSequencerStep = 0
+        bufferPointer = 0
+        start()
+    }
 
     fun start() {
         scheduler.schedule(Event.APU_SEQUENCER, FRAME_SEQUENCER_PERIOD)

@@ -66,12 +66,12 @@ class Emulator(
     private fun reset() {
         scheduler.reset()
         frameEnd = 0
-        apu.start()
         cpu.reset()
-        bus.reset()
         ppu.reset()
+        apu.reset()
         timer.reset()
         joypad.reset()
+        bus.reset()
     }
 
     private val framePeriod = 1.seconds * CYCLES_PER_FRAME / CPU_HZ
