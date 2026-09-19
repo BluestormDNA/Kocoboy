@@ -143,10 +143,14 @@ class Bus(
             in 0xFF00..0xFF7F -> {
                 when (val ioAddress = addr and 0x7F) {
                     0x00 -> joypad.read().toInt() and 0xFF
-                    // DIV and TIMA follow the clock
+                    // DIV, TIMA, STAT and LY follow the clock
                     0x04, 0x05 -> {
                         sideEffect = true
                         timer.read(ioAddress).toInt() and 0xFF
+                    }
+                    0x41, 0x44 -> {
+                        sideEffect = true
+                        ppu.read(ioAddress).toInt() and 0xFF
                     }
                     in 0x03..0x07 -> timer.read(ioAddress).toInt() and 0xFF
                     in 0x10..0x3F -> apu.read(ioAddress).toInt() and 0xFF
@@ -166,13 +170,19 @@ class Bus(
         sideEffect = true
         when (addr) {
             in 0x0000..0x7FFF -> cartridge.writeROM(address, byte)
-            in 0x8000..0x9FFF -> vRam[addr and 0x1FFF] = value.toByte()
+            in 0x8000..0x9FFF -> {
+                ppu.drawDueLines(scheduler.clock, this)
+                vRam[addr and 0x1FFF] = value.toByte()
+            }
             in 0xA000..0xBFFF -> cartridge.writeERAM(address, byte)
             in 0xC000..0xCFFF -> wRam0[addr and 0xFFF] = value.toByte()
             in 0xD000..0xDFFF -> wRam1[addr and 0xFFF] = value.toByte()
             in 0xE000..0xEFFF -> wRam0[addr and 0xFFF] = value.toByte()
             in 0xF000..0xFDFF -> wRam1[addr and 0xFFF] = value.toByte()
-            in 0xFE00..0xFE9F -> oam[addr and 0xFF] = value.toByte()
+            in 0xFE00..0xFE9F -> {
+                ppu.drawDueLines(scheduler.clock, this)
+                oam[addr and 0xFF] = value.toByte()
+            }
             in 0xFEA0..0xFEFF -> Unit // Not usable
             in 0xFF00..0xFF7F -> { // IO
                 when (val ioAddress = addr and 0x7F) {
