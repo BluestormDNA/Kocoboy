@@ -2,8 +2,6 @@ package io.github.bluestormdna.kocoboy.core
 
 import io.github.bluestormdna.kocoboy.host.Host
 import kotlin.experimental.and
-import kotlin.experimental.inv
-import kotlin.experimental.or
 
 class PPU(private val host: Host, private val scheduler: Scheduler) {
 
@@ -19,7 +17,6 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
     private var stat: Byte = 0 // FF41 - STAT - LCDC Status (R/W)
     private var scy: Byte = 0 // FF42 - SCY - Scroll Y (R/W)
     private var scx: Byte = 0 // FF43 - SCX - Scroll X (R/W)
-    private var ly: Byte = 0 // FF44 - LY - LCDC Y-Coordinate (R) bypasses on write always 0
     private var lyc: Byte = 0 // FF45 - LYC - LY Compare(R/W)
     private var bgp: Byte = 0 // FF47 - BGP - BG Palette Data(R/W) - Non CGB Mode Only
     private var obp0: Byte = 0 // FF48 - OBP0 - Object Palette 0 Data (R/W) - Non CGB Mode Only
@@ -30,6 +27,11 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
     // lcdc bit fields
     private var isEnabled: Boolean = false
 
+    private var lcdOnAt: Long = 0
+
+    private var renderFrame: Long = 0
+    private var renderedLines = 0
+
     // Cached palettes
     private val backgroundPalette = IntArray(4)
     private val objectPalette0 = IntArray(4)
@@ -37,10 +39,10 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
 
     fun read(ioAddress: Int): Byte = when (ioAddress) {
         0x40 -> lcdc
-        0x41 -> stat
+        0x41 -> readStat()
         0x42 -> scy
         0x43 -> scx
-        0x44 -> ly
+        0x44 -> ly().toByte()
         0x45 -> lyc
         0x47 -> bgp
         0x48 -> obp0
@@ -50,20 +52,40 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         else -> 0xFF.toByte()
     }
 
+    private fun positionAt(time: Long): Int = ((time - lcdOnAt) % FRAME_CYCLES).toInt()
+
+    private fun ly(): Int = if (isEnabled) positionAt(scheduler.clock) / SCANLINE_CYCLES else 0
+
+    private fun coincidence(): Boolean = ly() == lyc.toInt() and 0xFF
+
+    private fun readStat(): Byte {
+        if (!isEnabled) return (stat.toInt() or (if (coincidence()) 0x4 else 0)).toByte()
+        val position = positionAt(scheduler.clock)
+        val line = position / SCANLINE_CYCLES
+        val dot = position % SCANLINE_CYCLES
+        val coincidenceBit = if (line == lyc.toInt() and 0xFF) 0x4 else 0
+        val mode = when {
+            line >= SCREEN_HEIGHT -> 1
+            dot < OAM_CYCLES -> 2
+            dot < HBLANK_DOT -> 3
+            else -> 0
+        }
+        return (stat.toInt() or coincidenceBit or mode).toByte()
+    }
+
     fun write(ioAddress: Int, value: Byte, bus: Bus) {
         when (ioAddress) {
             0x40 -> {
                 if (value == lcdc) return
+                drawDueLines(scheduler.clock, bus)
                 val wasEnabled = isBit(7, lcdc)
                 lcdc = value
                 isEnabled = isBit(7, value)
 
                 if (!isEnabled) {
-                    scheduler.cancel(Event.PPU_MODE)
-                    ly = 0
+                    scheduler.cancel(Event.PPU)
                     windowInternalLine = 0
                     windowTriggeredThisFrame = false
-                    stat = (stat and 0x3.toByte().inv())
                     // the panel goes blank white while the LCD is off, not frozen on the last frame
                     frameBuffer.fill(color[0])
                     bgColorZero.fill(true)
@@ -71,44 +93,59 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
                 }
 
                 if (!wasEnabled and isEnabled) {
-                    stat = stat or 2
-                    handleCoincidenceFlag(bus)
-                    scheduler.schedule(Event.PPU_MODE, OAM_CYCLES)
+                    startTimeline()
+                    if (coincidence() && isBit(6, stat)) bus.requestInterrupt(LCD_INTERRUPT)
                 }
             }
             0x41 -> {
-                val readOnlyFlags = stat and 0x7
-                stat = value and 0x7.inv().toByte() or readOnlyFlags
+                stat = value and 0xF8.toByte()
+                if (isEnabled) scheduleNext(scheduler.clock)
             }
-            0x42 -> scy = value
-            0x43 -> scx = value
-            0x44 -> {
-                ly = 0
-                handleCoincidenceFlag(bus)
+            0x42 -> {
+                drawDueLines(scheduler.clock, bus)
+                scy = value
             }
+            0x43 -> {
+                drawDueLines(scheduler.clock, bus)
+                scx = value
+            }
+            0x44 -> Unit // LY is read only
             0x45 -> {
                 lyc = value
-                handleCoincidenceFlag(bus)
+                if (coincidence() && isBit(6, stat)) bus.requestInterrupt(LCD_INTERRUPT)
+                if (isEnabled) scheduleNext(scheduler.clock)
             }
-            0x46 -> bus.handleDma(value) // todo internalize
+            0x46 -> {
+                drawDueLines(scheduler.clock, bus)
+                bus.handleDma(value) // todo internalize
+            }
             0x47 -> {
                 if (value == bgp) return
+                drawDueLines(scheduler.clock, bus)
                 bgp = value
                 // (palette shr colorId * 2) and 0x3
                 cachePalette(backgroundPalette, color, value)
             }
             0x48 -> {
                 if (value == obp0) return
+                drawDueLines(scheduler.clock, bus)
                 obp0 = value
                 cachePalette(objectPalette0, color, value)
             }
             0x49 -> {
                 if (value == obp1) return
+                drawDueLines(scheduler.clock, bus)
                 obp1 = value
                 cachePalette(objectPalette1, color, value)
             }
-            0x4A -> wy = value
-            0x4B -> wx = value
+            0x4A -> {
+                drawDueLines(scheduler.clock, bus)
+                wy = value
+            }
+            0x4B -> {
+                drawDueLines(scheduler.clock, bus)
+                wx = value
+            }
         }
     }
 
@@ -119,110 +156,111 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         cachedPalette[3] = colors[palette.toInt() ushr 6 and 0x3]
     }
 
-    fun onModeChange(bus: Bus) {
-        when ((stat and 0x3).toInt()) {
-            Mode.OAM_MODE2 -> {
-                updateStatMode(3)
-                scheduler.reschedule(Event.PPU_MODE, VRAM_CYCLES)
-            }
+    private fun startTimeline() {
+        lcdOnAt = scheduler.clock
+        renderFrame = lcdOnAt
+        renderedLines = 0
+        scheduleNext(scheduler.clock)
+    }
 
-            Mode.VRAM_MODE3 -> {
-                updateStatMode(0)
-                drawScanLine(bus)
-                if (isBit(3, stat)) {
-                    bus.requestInterrupt(LCD_INTERRUPT)
-                }
-                scheduler.reschedule(Event.PPU_MODE, HBLANK_CYCLES)
-            }
+    fun onEvent(bus: Bus) {
+        val at = scheduler.firedAt
+        val position = positionAt(at)
+        val line = position / SCANLINE_CYCLES
+        val dot = position % SCANLINE_CYCLES
 
-            Mode.HBLANK_MODE0 -> {
-                ly++
-                handleCoincidenceFlag(bus)
+        if (line == SCREEN_HEIGHT && dot == 0) {
+            drawDueLines(at, bus)
+            windowInternalLine = 0
+            windowTriggeredThisFrame = false
+            host.render(frameBuffer)
+            bus.requestInterrupt(VBLANK_INTERRUPT)
+            if (isBit(4, stat)) bus.requestInterrupt(LCD_INTERRUPT)
+        }
+        if (line < SCREEN_HEIGHT) {
+            if (dot == HBLANK_DOT && isBit(3, stat)) bus.requestInterrupt(LCD_INTERRUPT)
+            if (dot == 0 && isBit(5, stat)) bus.requestInterrupt(LCD_INTERRUPT)
+        }
+        if (dot == 0 && line == lyc.toInt() and 0xFF && isBit(6, stat)) {
+            bus.requestInterrupt(LCD_INTERRUPT)
+        }
 
-                if (ly.toInt() and 0xFF == SCREEN_HEIGHT) { // check if we arrived Vblank
-                    updateStatMode(1) // Set VBlank
-                    bus.requestInterrupt(VBLANK_INTERRUPT)
-                    if (isBit(4, stat)) {
-                        bus.requestInterrupt(LCD_INTERRUPT)
-                    }
-                    windowInternalLine = 0
-                    windowTriggeredThisFrame = false
-                    host.render(frameBuffer)
-                    scheduler.reschedule(Event.PPU_MODE, SCANLINE_CYCLES)
-                } else { // not arrived yet so return to mode 2 / OAM
-                    updateStatMode(2)
-                    if (isBit(5, stat)) {
-                        bus.requestInterrupt(LCD_INTERRUPT)
-                    }
-                    scheduler.reschedule(Event.PPU_MODE, OAM_CYCLES)
-                }
-            }
+        scheduleNext(at)
+    }
 
-            Mode.VBLANK_MODE1 -> {
-                ly++
-                handleCoincidenceFlag(bus)
+    private fun scheduleNext(after: Long) {
+        val frame = frameOf(after)
+        var next = nextInFrame(frame, VBLANK_START, after)
+        if (isBit(3, stat)) next = minOf(next, nextVisibleLine(frame, HBLANK_DOT, after))
+        if (isBit(5, stat)) next = minOf(next, nextVisibleLine(frame, 0, after))
+        val compare = lyc.toInt() and 0xFF
+        if (isBit(6, stat) && compare <= LAST_LINE) {
+            next = minOf(next, nextInFrame(frame, compare * SCANLINE_CYCLES, after))
+        }
+        scheduler.scheduleAt(Event.PPU, next)
+    }
 
-                if ((ly.toInt() and 0xFF) > SCREEN_VBLANK_HEIGHT) { // check end of VBLANK
-                    updateStatMode(2)
-                    ly = 0
-                    handleCoincidenceFlag(bus)
-                    if (isBit(5, stat)) {
-                        bus.requestInterrupt(LCD_INTERRUPT)
-                    }
-                    scheduler.reschedule(Event.PPU_MODE, OAM_CYCLES)
-                } else {
-                    scheduler.reschedule(Event.PPU_MODE, SCANLINE_CYCLES)
-                }
-            }
+    fun nextFrameEnd(after: Long): Long {
+        if (!isEnabled) return after + FRAME_CYCLES
+        return nextInFrame(frameOf(after), VBLANK_START, after)
+    }
+
+    private fun frameOf(time: Long): Long = lcdOnAt + (time - lcdOnAt) / FRAME_CYCLES * FRAME_CYCLES
+
+    private fun nextInFrame(frame: Long, offset: Int, after: Long): Long {
+        val at = frame + offset
+        return if (at > after) at else at + FRAME_CYCLES
+    }
+
+    private fun nextVisibleLine(frame: Long, dot: Int, after: Long): Long {
+        val position = (after - frame).toInt()
+        var line = position / SCANLINE_CYCLES
+        if (position % SCANLINE_CYCLES >= dot) line++
+        if (line >= SCREEN_HEIGHT) return frame + FRAME_CYCLES + dot
+        return frame + line * SCANLINE_CYCLES + dot
+    }
+
+    fun drawDueLines(time: Long, bus: Bus) {
+        if (!isEnabled) return
+        if (renderedLines == SCREEN_HEIGHT && time < renderFrame + FRAME_CYCLES) return
+        val frame = frameOf(time)
+        if (frame != renderFrame) {
+            renderFrame = frame
+            renderedLines = 0
+        }
+        val ended = ((time - frame).toInt() + SCANLINE_CYCLES - HBLANK_DOT) / SCANLINE_CYCLES
+        val due = minOf(SCREEN_HEIGHT, ended)
+        while (renderedLines < due) {
+            drawScanLine(renderedLines, bus)
+            renderedLines++
         }
     }
 
-    private fun handleCoincidenceFlag(bus: Bus) {
-        if (ly == lyc) {
-            stat = bitSet(2, stat)
-            if (isBit(6, stat)) {
-                bus.requestInterrupt(LCD_INTERRUPT)
-            }
-        } else {
-            stat = bitClear(2, stat)
-        }
-    }
-
-    private fun updateStatMode(mode: Int) {
-        val oldStat = stat.toUInt() and 0x3u.inv()
-        stat = (oldStat or mode.toUInt()).toByte()
-    }
-
-    private fun drawScanLine(bus: Bus) {
+    private fun drawScanLine(line: Int, bus: Bus) {
         if (isBit(0, lcdc)) { // Bit 0 - BG Display (0=Off, 1=On)
-            renderBG(bus)
+            renderBG(line, bus)
         } else {
-            blankScanLine()
+            blankScanLine(line)
         }
         if (isBit(1, lcdc)) { // Bit 1 - OBJ (Sprite) Display Enable
-            // val time = measureTime {
-            renderSpritesBuffer(bus)
-            // }
-            // println("meassured: $time on ${mmu.LY.toInt() and 0xFF}")
+            renderSpritesBuffer(line, bus)
         }
     }
 
     // BG off renders white, and counts as colour 0 everywhere for sprite priority
-    private fun blankScanLine() {
-        val LY = ly.toInt() and 0xFF
+    private fun blankScanLine(line: Int) {
         for (p in 0..<SCREEN_WIDTH) {
-            frameBuffer.write(p, LY, color[0])
+            frameBuffer.write(p, line, color[0])
             bgColorZero[p] = true
         }
     }
 
-    private fun renderBG(bus: Bus) {
+    private fun renderBG(line: Int, bus: Bus) {
         val WX = (wx.toInt() and 0xFF) - 7 // WX needs -7 Offset
         val WY = wy.toInt() and 0xFF
-        val LY = ly.toInt() and 0xFF
         val SCY = scy.toInt() and 0xFF
         val SCX = scx.toInt() and 0xFF
-        if (LY == WY) windowTriggeredThisFrame = true
+        if (line == WY) windowTriggeredThisFrame = true
         val isWin = isBit(5, lcdc) && windowTriggeredThisFrame
 
         val windowTileMapAddress = getWindowTileMapAddress(lcdc)
@@ -238,7 +276,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
             if (p == 0 || (x and 0x7) == 0) {
                 val tileCol = x / 8
                 val tileMap = if (inWin) windowTileMapAddress else bgTileMapAddress
-                val y = if (inWin) windowInternalLine else (LY + SCY) and 0xFF
+                val y = if (inWin) windowInternalLine else (line + SCY) and 0xFF
 
                 val tileLine = (y and 7) * 2
                 val tileRow = y / 8 * 32
@@ -260,7 +298,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
             val color = backgroundPalette[colorId]
 
             bgColorZero[p] = colorId == 0
-            frameBuffer.write(p, LY, color)
+            frameBuffer.write(p, line, color)
         }
 
         if (windowAppeared) {
@@ -270,13 +308,12 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
 
     private val orderBuffer = IntArray(40 + 1) // Oam Indexes plus terminator
 
-    private fun renderSpritesBuffer(bus: Bus) {
-        val unsignedLy = ly.toInt() and 0xFF
+    private fun renderSpritesBuffer(line: Int, bus: Bus) {
         val spriteSize = spriteSize(lcdc)
 
         // 0x9F OAM Size, 40 Sprites x 4 bytes filtering:
         // Out of y range and ordered by x limited to 10
-        bus.orderSprites(unsignedLy, spriteSize, orderBuffer)
+        bus.orderSprites(line, spriteSize, orderBuffer)
 
         var orderBufferPointer = 0
         while (orderBuffer[orderBufferPointer] != -1) {
@@ -296,10 +333,10 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
             val palette = if (isBit(4, attr)) objectPalette1 else objectPalette0
 
             val tileRow = if (isYFlipped(attr)) {
-                spriteSize - 1 - (unsignedLy - y)
+                spriteSize - 1 - (line - y)
             } else {
                 (
-                    unsignedLy -
+                    line -
                         y
                     )
             }
@@ -317,7 +354,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
                         (isAboveBG(attr) || bgColorZero[x + p])
                     ) {
                         val color = palette[colorId]
-                        frameBuffer.write(x + p, unsignedLy, color)
+                        frameBuffer.write(x + p, line, color)
                     }
                 }
             }
@@ -379,7 +416,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
     }
 
     fun reset() {
-        if (isEnabled) scheduler.schedule(Event.PPU_MODE, OAM_CYCLES)
+        if (isEnabled) startTimeline()
         windowInternalLine = 0
         windowTriggeredThisFrame = false
         frameBuffer.fill(color[0])
@@ -405,20 +442,15 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
 
         private const val SCREEN_WIDTH = 160
         private const val SCREEN_HEIGHT = 144
-        private const val SCREEN_VBLANK_HEIGHT = 153
+        private const val LAST_LINE = 153
         private const val OAM_CYCLES = 80
         private const val VRAM_CYCLES = 172
-        private const val HBLANK_CYCLES = 204
+        private const val HBLANK_DOT = OAM_CYCLES + VRAM_CYCLES
         private const val SCANLINE_CYCLES = 456
+        private const val VBLANK_START = SCREEN_HEIGHT * SCANLINE_CYCLES
+        private const val FRAME_CYCLES = SCANLINE_CYCLES * (LAST_LINE + 1)
 
         private const val VBLANK_INTERRUPT: Byte = 0x1
         private const val LCD_INTERRUPT: Byte = 0x2
-
-        object Mode {
-            const val HBLANK_MODE0 = 0
-            const val VBLANK_MODE1 = 1
-            const val OAM_MODE2 = 2
-            const val VRAM_MODE3 = 3
-        }
     }
 }

@@ -773,10 +773,10 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
         if (ime || flags == 0) {
             halted = true
             PC--
-            // No flag pending, nothing changes before the next event or the frame end
+            // No flag pending, nothing changes before the next event
             // so skip there instead of re-running HALT 4 cycles at a time
             if (flags == 0) {
-                val wakeAt = minOf(scheduler.nextDeadline, scheduler.frameEnd)
+                val wakeAt = scheduler.nextDeadline
                 val haltedCycles = wakeAt - scheduler.clock
                 // This HALT is +4 cycles, add the re-runs that still fit before wakeAt
                 // so the clock lands on the same cycle the slow loop would have
@@ -940,7 +940,7 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
         ) {
             // Charge every whole pass that ends before the next event at once
             val pass = at - idleClock
-            val skipped = (minOf(deadline, scheduler.frameEnd) - 1 - at) / pass * pass
+            val skipped = (deadline - 1 - at) / pass * pass
             if (skipped > 0) {
                 cycles += skipped.toInt()
                 at += skipped

@@ -65,6 +65,7 @@ class Emulator(
 
     private fun reset() {
         scheduler.reset()
+        frameEnd = 0
         apu.start()
         cpu.reset()
         bus.reset()
@@ -104,14 +105,17 @@ class Emulator(
         }
     }
 
+    private var frameEnd = 0L
+
     private fun runFrame() {
-        scheduler.frameEnd += CYCLES_PER_FRAME
+        frameEnd = ppu.nextFrameEnd(frameEnd)
+        scheduler.scheduleAt(Event.FRAME_END, frameEnd)
         joypad.latch(bus)
-        while (scheduler.clock < scheduler.frameEnd) {
+        while (scheduler.clock < frameEnd) {
             scheduler.advance(cpu.step())
             if (cpu.interruptsQuiet()) {
                 // Nothing can fire before the next event, so run bare instructions up to it
-                scheduler.limit = minOf(scheduler.nextDeadline, scheduler.frameEnd)
+                scheduler.limit = scheduler.nextDeadline
                 while (scheduler.clock < scheduler.limit) scheduler.advance(cpu.execute())
             }
             while (scheduler.clock >= scheduler.nextDeadline) dispatch(scheduler.pollDue())
@@ -120,7 +124,7 @@ class Emulator(
 
     private fun dispatch(event: Int) {
         when (event) {
-            Event.PPU_MODE -> ppu.onModeChange(bus)
+            Event.PPU -> ppu.onEvent(bus)
             Event.TIMER_OVERFLOW -> timer.onOverflow()
             Event.TIMER_RELOAD -> timer.onReload(bus)
             Event.APU_SEQUENCER -> apu.onFrameSequencer()

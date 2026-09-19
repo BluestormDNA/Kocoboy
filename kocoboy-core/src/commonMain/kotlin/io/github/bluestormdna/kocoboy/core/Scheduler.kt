@@ -1,12 +1,13 @@
 package io.github.bluestormdna.kocoboy.core
 
 object Event {
-    const val PPU_MODE = 0
+    const val PPU = 0
     const val TIMER_OVERFLOW = 1
     const val TIMER_RELOAD = 2
     const val APU_SEQUENCER = 3
+    const val FRAME_END = 4
 
-    const val COUNT = 4
+    const val COUNT = 5
 }
 
 class Scheduler {
@@ -24,8 +25,6 @@ class Scheduler {
     var firedAt: Long = 0
         private set
 
-    var frameEnd: Long = 0
-
     // Instructions run without the interrupt check below this, 0 sends the next one through step()
     var limit: Long = 0
 
@@ -33,7 +32,6 @@ class Scheduler {
         clock = 0
         deadlines.fill(Long.MAX_VALUE)
         firedAt = 0
-        frameEnd = 0
         limit = 0
         nextDeadline = Long.MAX_VALUE
         nextEvent = -1
