@@ -416,14 +416,28 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
     }
 
     fun reset() {
-        if (isEnabled) startTimeline()
+        lcdc = 0
+        isEnabled = false
+        stat = 0
+        scy = 0
+        scx = 0
+        lyc = 0
+        bgp = 0
+        obp0 = 0
+        obp1 = 0
+        wy = 0
+        wx = 0
+        lcdOnAt = 0
+        renderFrame = 0
+        renderedLines = 0
         windowInternalLine = 0
         windowTriggeredThisFrame = false
+        backgroundPalette.fill(0)
+        objectPalette0.fill(0)
+        objectPalette1.fill(0)
+        bgColorZero.fill(false)
         frameBuffer.fill(color[0])
         host.render(frameBuffer)
-
-        scx = 0
-        scy = 0
     }
 
     companion object {
