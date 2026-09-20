@@ -28,7 +28,8 @@ class Emulator(
     private val apu: APU = APU(host, scheduler),
     private val joypad: Joypad = Joypad(),
     private val timer: Timer = Timer(scheduler),
-    private val bus: Bus = Bus(host, apu, joypad, timer, ppu, scheduler),
+    private val serial: Serial = Serial(host, scheduler, timer),
+    private val bus: Bus = Bus(host, serial, apu, joypad, timer, ppu, scheduler),
     private val cpu: CPU = CPU(bus, scheduler),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
 ) {
@@ -128,6 +129,7 @@ class Emulator(
             Event.TIMER_OVERFLOW -> timer.onOverflow()
             Event.TIMER_RELOAD -> timer.onReload(bus)
             Event.APU_SEQUENCER -> apu.onFrameSequencer()
+            Event.SERIAL -> serial.onTransferComplete(bus)
         }
     }
 

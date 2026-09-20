@@ -2,7 +2,7 @@ package io.github.bluestormdna.kocoboy.core
 
 class Timer(private val scheduler: Scheduler) {
 
-    private var divBase: Long = 0
+    private var divBase: Long = -DIVIDER_AT_BOOT
 
     private var tima = 0
     private var timaAt: Long = 0
@@ -12,7 +12,8 @@ class Timer(private val scheduler: Scheduler) {
     private var tacEnabled = false
     private var tacFrequency = 0
 
-    private val counter: Long get() = scheduler.clock - divBase
+    // the divider DIV, TIMA and the serial clock derive from
+    val counter: Long get() = scheduler.clock - divBase
 
     private fun timerSignal(): Boolean =
         tacEnabled && (counter ushr SELECTED_BITS[tacFrequency]) and 1L == 1L
@@ -93,7 +94,7 @@ class Timer(private val scheduler: Scheduler) {
     }
 
     fun reset() {
-        divBase = scheduler.clock
+        divBase = scheduler.clock - DIVIDER_AT_BOOT
         tima = 0
         timaAt = scheduler.clock
         tma = 0
@@ -107,6 +108,9 @@ class Timer(private val scheduler: Scheduler) {
         private val TAC_PERIODS = intArrayOf(1024, 16, 64, 256)
         private val SELECTED_BITS = intArrayOf(9, 3, 5, 7)
         private const val RELOAD_DELAY = 4
+
+        // the divider is mid count at hand over, DIV reads AB
+        private const val DIVIDER_AT_BOOT = 0xABCCL
         private const val TIMER_INTERRUPT: Byte = 0x04
     }
 }
