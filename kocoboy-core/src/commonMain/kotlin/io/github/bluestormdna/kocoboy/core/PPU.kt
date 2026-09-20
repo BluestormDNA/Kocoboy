@@ -18,6 +18,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
     private var scy: Byte = 0 // FF42 - SCY - Scroll Y (R/W)
     private var scx: Byte = 0 // FF43 - SCX - Scroll X (R/W)
     private var lyc: Byte = 0 // FF45 - LYC - LY Compare(R/W)
+    private var dma: Byte = 0 // FF46 - DMA - OAM transfer source, reads back what was written
     private var bgp: Byte = 0 // FF47 - BGP - BG Palette Data(R/W) - Non CGB Mode Only
     private var obp0: Byte = 0 // FF48 - OBP0 - Object Palette 0 Data (R/W) - Non CGB Mode Only
     private var obp1: Byte = 0 // FF49 - OBP1 - Object Palette 1 Data (R/W) - Non CGB Mode Only
@@ -44,6 +45,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         0x43 -> scx
         0x44 -> ly().toByte()
         0x45 -> lyc
+        0x46 -> dma
         0x47 -> bgp
         0x48 -> obp0
         0x49 -> obp1
@@ -117,6 +119,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
             }
             0x46 -> {
                 drawDueLines(scheduler.clock, bus)
+                dma = value
                 bus.handleDma(value) // todo internalize
             }
             0x47 -> {
@@ -422,6 +425,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         scy = 0
         scx = 0
         lyc = 0
+        dma = 0
         bgp = 0
         obp0 = 0
         obp1 = 0
