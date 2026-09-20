@@ -2,11 +2,13 @@ package io.github.bluestormdna.kocoboy.core
 
 import io.github.bluestormdna.kocoboy.core.cartridge.Cartridge
 import io.github.bluestormdna.kocoboy.core.cartridge.EmptySlot
+import io.github.bluestormdna.kocoboy.host.Host
 import kotlin.experimental.and
 import kotlin.experimental.or
 
 @OptIn(ExperimentalStdlibApi::class)
 class Bus(
+    private val host: Host,
     private val apu: APU,
     private val joypad: Joypad,
     private val timer: Timer,
@@ -212,10 +214,9 @@ class Bus(
     }
 
     private fun handleSerialLink(value: Int) {
-        // Temp Serial Link output for debug
         // Bit 7 (Transfer enable) starts the transfer; bits 0-1 just pick clock source/speed
         if (value and 0x80 != 0) {
-            print(readByte(0xFF01).toChar())
+            host.serial(readByte(0xFF01).toByte())
         }
     }
 

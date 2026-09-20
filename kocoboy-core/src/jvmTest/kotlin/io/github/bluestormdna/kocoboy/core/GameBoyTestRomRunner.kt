@@ -3,16 +3,18 @@ package io.github.bluestormdna.kocoboy.core
 import io.github.bluestormdna.kocoboy.host.Host
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.PrintStream
 import kotlin.test.Test
 import kotlin.test.fail
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 
 // Headless runner for Mooneye/Blargg test ROMs against the real Emulator (no mocks).
-private object NoopHost : Host {
+private class HeadlessHost : Host {
+    val output = ByteArrayOutputStream()
+
     override fun render(frameBuffer: IntArray) {}
     override fun play(sampleBuffer: ByteArray) {}
+    override fun serial(byte: Byte) = output.write(byte.toInt())
 }
 
 enum class RomResult { PASS, FAIL, INCONCLUSIVE }
@@ -53,31 +55,25 @@ private fun blarggMemoryResultFor(emulator: Emulator): RomResult {
 }
 
 fun runRom(rom: ByteArray, timeoutMillis: Long = 3_000): RomResult = runBlocking {
-    val captured = ByteArrayOutputStream()
-    val originalOut = System.out
-    System.setOut(PrintStream(captured, true, "US-ASCII"))
-    try {
-        val emulator = Emulator(NoopHost)
-        emulator.loadRom(rom)
-        emulator.runUncapped()
+    val host = HeadlessHost()
+    val emulator = Emulator(host)
+    emulator.loadRom(rom)
+    emulator.runUncapped()
 
-        var result = RomResult.INCONCLUSIVE
-        val deadline = System.currentTimeMillis() + timeoutMillis
-        while (System.currentTimeMillis() < deadline) {
-            delay(50)
-            val current = blarggMemoryResultFor(emulator)
-                .takeIf { it != RomResult.INCONCLUSIVE }
-                ?: serialResultFor(captured.toByteArray())
-            if (current != RomResult.INCONCLUSIVE) {
-                result = current
-                break
-            }
+    var result = RomResult.INCONCLUSIVE
+    val deadline = System.currentTimeMillis() + timeoutMillis
+    while (System.currentTimeMillis() < deadline) {
+        delay(50)
+        val current = blarggMemoryResultFor(emulator)
+            .takeIf { it != RomResult.INCONCLUSIVE }
+            ?: serialResultFor(host.output.toByteArray())
+        if (current != RomResult.INCONCLUSIVE) {
+            result = current
+            break
         }
-        emulator.powerOff()
-        result
-    } finally {
-        System.setOut(originalOut)
     }
+    emulator.powerOff()
+    result
 }
 
 /** Runs every .gb ROM under [root] (recursively), logging "path -> RESULT" as it completes. */

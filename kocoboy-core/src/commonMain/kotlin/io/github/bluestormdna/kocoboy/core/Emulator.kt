@@ -28,7 +28,7 @@ class Emulator(
     private val apu: APU = APU(host, scheduler),
     private val joypad: Joypad = Joypad(),
     private val timer: Timer = Timer(scheduler),
-    private val bus: Bus = Bus(apu, joypad, timer, ppu, scheduler),
+    private val bus: Bus = Bus(host, apu, joypad, timer, ppu, scheduler),
     private val cpu: CPU = CPU(bus, scheduler),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
 ) {
