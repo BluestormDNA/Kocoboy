@@ -6,8 +6,9 @@ object Event {
     const val TIMER_RELOAD = 2
     const val APU_SEQUENCER = 3
     const val FRAME_END = 4
+    const val SERIAL = 5
 
-    const val COUNT = 5
+    const val COUNT = 6
 }
 
 class Scheduler {

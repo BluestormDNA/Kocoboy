@@ -9,6 +9,7 @@ import kotlin.experimental.or
 @OptIn(ExperimentalStdlibApi::class)
 class Bus(
     private val host: Host,
+    private val serial: Serial,
     private val apu: APU,
     private val joypad: Joypad,
     private val timer: Timer,
@@ -145,6 +146,7 @@ class Bus(
             in 0xFF00..0xFF7F -> {
                 when (val ioAddress = addr and 0x7F) {
                     0x00 -> joypad.read().toInt() and 0xFF
+                    0x01, 0x02 -> serial.read(ioAddress).toInt() and 0xFF
                     // DIV, TIMA, STAT and LY follow the clock
                     0x04, 0x05 -> {
                         sideEffect = true
@@ -189,7 +191,7 @@ class Bus(
             in 0xFF00..0xFF7F -> { // IO
                 when (val ioAddress = addr and 0x7F) {
                     0x00 -> joypad.write(value.toByte(), this)
-                    0x02 -> handleSerialLink(value)
+                    0x01, 0x02 -> serial.write(ioAddress, value.toByte())
                     0x0F -> { // todo use interrupt field
                         io[ioAddress] = (value or 0xE0).toByte()
                         scheduler.limit = 0
@@ -213,13 +215,6 @@ class Bus(
         }
     }
 
-    private fun handleSerialLink(value: Int) {
-        // Bit 7 (Transfer enable) starts the transfer; bits 0-1 just pick clock source/speed
-        if (value and 0x80 != 0) {
-            host.serial(readByte(0xFF01).toByte())
-        }
-    }
-
     fun readOAM(addr: Int): Int = oam[addr].toInt() and 0xFF
 
     fun readVRAM(addr: Int): Int = vRam[addr and 0x1FFF].toInt() and 0xFF
@@ -237,17 +232,13 @@ class Bus(
         io[0x0F] = interruptFlags and ((1 shl b).inv()).toByte()
     }
 
-    fun clearInterrupt2(interrupt: Int) {
-        val interruptFlags = io[0x0F]
-        io[0x0F] = interruptFlags and (interrupt.inv()).toByte()
-    }
-
     fun requestInterrupt(interrupt: Byte) {
         io[0x0F] = io[0x0F] or interrupt
         scheduler.limit = 0
     }
 
     fun reset() {
+        serial.reset()
         sideEffect = false
         cleanUp()
         initializeRegisters()
