@@ -19,8 +19,16 @@ class ChannelPulse {
     private var sweepCounter: Int = 0
 
     var nr10: Byte = 0
+
+    // The sweep works on its own copy of the frequency, taken at trigger
+    // Hardware reloads the sweep timer with 8 when the pace is 0
+    private val sweepPeriod: Int get() = if (sweepTime > 0) sweepTime else 8
+
+    private var shadowFreq = 0
+    private var sweepEnabled = false
+    private var negateUsed = false
     private var sweepTime = 0
-    private var sweepStep = 0
+    private var sweepNegate = false
     private var sweepShift = 0
 
     var nrx1: Byte = 0
@@ -42,9 +50,12 @@ class ChannelPulse {
 
     fun sweep(value: Byte) {
         nr10 = value or 0x80.toByte()
+        val wasNegate = sweepNegate
         sweepTime = (value.toInt() ushr 4) and 0x7
-        sweepStep = (value.toInt() ushr 3) and 0x1
+        sweepNegate = (value.toInt() and 0x08) != 0
         sweepShift = value.toInt() and 0x7
+        // Leaving negate mode after a calculation used it disables the channel
+        if (wasNegate && !sweepNegate && negateUsed) isEnabled = false
     }
 
     fun setNRx1LengthTimerDutyCycle(value: Byte) {
@@ -98,8 +109,11 @@ class ChannelPulse {
         envelopeCounter = envelopeSweep
         envelopeVolume = envelopeInitialVolume
 
-        sweepCounter = sweepTime
-        if (sweepShift > 0) sweep()
+        shadowFreq = freq.toInt()
+        sweepCounter = sweepPeriod
+        sweepEnabled = sweepTime != 0 || sweepShift != 0
+        negateUsed = false
+        if (sweepShift > 0) calculateSweep()
     }
 
     fun tickLength() {
@@ -110,26 +124,30 @@ class ChannelPulse {
 
     fun tickSweep() {
         if (sweepCounter > 0) sweepCounter--
-        // The overflow check runs whenever the pace is set, even with shift 0
-        if (sweepTime > 0 && sweepCounter == 0) {
-            val sweep = sweep()
-            if (sweep <= 2047 && sweepShift > 0) {
-                periodHi = (sweep ushr 8).toUByte()
-                nrx3periodLo = (sweep and 0xFF).toUByte()
-                reloadPeriod()
+        if (sweepCounter != 0) return
 
-                sweep()
-            }
+        // The timer reloads even when nothing will sweep
+        sweepCounter = sweepPeriod
+        if (!sweepEnabled || sweepTime == 0) return
 
-            sweepCounter = sweepTime
+        val next = calculateSweep()
+        if (next <= 2047 && sweepShift > 0) {
+            shadowFreq = next
+            periodHi = (next ushr 8).toUByte()
+            nrx3periodLo = (next and 0xFF).toUByte()
+            reloadPeriod()
+
+            // Overflow is checked again on the new value, which sound tests 4, 5 and 7 rely on
+            calculateSweep()
         }
     }
 
-    private fun sweep(): Int {
-        val step = if (sweepStep == 1) -1 else 1
-        val sweep: UShort = (freq + ((freq.toUInt() shr sweepShift) * step.toUShort())).toUShort()
-        if (sweep > 2047u) isEnabled = false
-        return sweep.toInt()
+    private fun calculateSweep(): Int {
+        val delta = shadowFreq shr sweepShift
+        if (sweepNegate) negateUsed = true
+        val next = if (sweepNegate) shadowFreq - delta else shadowFreq + delta
+        if (next > 2047) isEnabled = false
+        return next
     }
 
     fun tickEnvelope() {
