@@ -2,31 +2,30 @@ package io.github.bluestormdna.kocoboy.ui
 
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asComposeImageBitmap
+import kotlinx.cinterop.ByteVar
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.convert
+import kotlinx.cinterop.interpretCPointer
+import kotlinx.cinterop.usePinned
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ColorType
 import org.jetbrains.skia.ImageInfo
+import platform.posix.memcpy
 
-actual fun createImageBitmapFromIntArray(intArray: IntArray, width: Int, height: Int): ImageBitmap {
-    val screenImageInfo = ImageInfo(160, 144, ColorType.N32, alphaType = ColorAlphaType.OPAQUE)
-
-    val byteArray = intArray.toByteArray()
-
-    return Bitmap().apply {
-        installPixels(screenImageInfo, byteArray, 160 * 4)
-    }.asComposeImageBitmap()
+private val bitmap = Bitmap().apply {
+    allocPixels(ImageInfo(160, 144, ColorType.N32, alphaType = ColorAlphaType.OPAQUE))
 }
 
-// todo
-// Reinterpret this wth K/N (if possible)
-fun IntArray.toByteArray(): ByteArray {
-    val byteArray = ByteArray(this.size * 4)
-    for (i in this.indices) {
-        val color = this[i]
-        byteArray[i * 4] = (color and 0xFF).toByte()
-        byteArray[i * 4 + 1] = (color shr 8).toByte()
-        byteArray[i * 4 + 2] = (color shr 16).toByte()
-        byteArray[i * 4 + 3] = (color shr 24).toByte()
+@OptIn(ExperimentalForeignApi::class)
+private val pixels = interpretCPointer<ByteVar>(bitmap.peekPixels()!!.addr)
+
+@OptIn(ExperimentalForeignApi::class)
+actual fun createImageBitmapFromIntArray(intArray: IntArray, width: Int, height: Int): ImageBitmap {
+    intArray.usePinned {
+        memcpy(pixels, it.addressOf(0), (intArray.size * Int.SIZE_BYTES).convert())
     }
-    return byteArray
+    bitmap.notifyPixelsChanged()
+    return bitmap.asComposeImageBitmap()
 }

@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalWasmJsInterop::class)
+
 package io.github.bluestormdna.kocoboy.ui
 
 import androidx.compose.ui.graphics.ImageBitmap
@@ -6,27 +8,22 @@ import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ColorType
 import org.jetbrains.skia.ImageInfo
+import org.khronos.webgl.ArrayBuffer
+import org.khronos.webgl.Int32Array
+import org.khronos.webgl.set
+
+private val bitmap = Bitmap().apply {
+    allocPixels(ImageInfo(160, 144, ColorType.N32, alphaType = ColorAlphaType.OPAQUE))
+}
+
+private val address = bitmap.peekPixels()!!.addr
 
 actual fun createImageBitmapFromIntArray(intArray: IntArray, width: Int, height: Int): ImageBitmap {
-    val screenImageInfo = ImageInfo(160, 144, ColorType.N32, alphaType = ColorAlphaType.OPAQUE)
-
-    val byteArray = intArray.toByteArray()
-
-    return Bitmap().apply {
-        installPixels(screenImageInfo, byteArray, 160 * 4)
-    }.asComposeImageBitmap()
+    // A fresh view every frame since growing skiko's heap detaches the old buffer
+    val pixels = Int32Array(skikoMemory(loadedWasm), address, intArray.size)
+    for (i in intArray.indices) pixels[i] = intArray[i]
+    bitmap.notifyPixelsChanged()
+    return bitmap.asComposeImageBitmap()
 }
 
-// todo
-// https://youtrack.jetbrains.com/issue/KT-30098
-fun IntArray.toByteArray(): ByteArray {
-    val byteArray = ByteArray(this.size * 4)
-    for (i in this.indices) {
-        val color = this[i]
-        byteArray[i * 4] = (color and 0xFF).toByte()
-        byteArray[i * 4 + 1] = (color shr 8).toByte()
-        byteArray[i * 4 + 2] = (color shr 16).toByte()
-        byteArray[i * 4 + 3] = (color shr 24).toByte()
-    }
-    return byteArray
-}
+private fun skikoMemory(loadedWasm: JsAny): ArrayBuffer = js("loadedWasm._.memory.buffer")
