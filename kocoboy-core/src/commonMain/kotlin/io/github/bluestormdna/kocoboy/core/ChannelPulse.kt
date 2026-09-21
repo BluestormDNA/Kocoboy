@@ -116,6 +116,23 @@ class ChannelPulse {
         if (sweepShift > 0) calculateSweep()
     }
 
+    // While powered off DMG still takes the length, but not the rest of the register
+    fun setLengthOnly(value: Byte) {
+        length = 64 - (value.toInt() and 0x3F)
+    }
+
+    // DMG keeps the length counter when the APU is powered off
+    fun powerOff() {
+        val keptLength = length
+        sweep(0)
+        setNRx1LengthTimerDutyCycle(0)
+        setNRx2EnvelopeVolume(0)
+        setNRx3PeriodLow(0)
+        setNRx4PeriodHiControl(0, false)
+        length = keptLength
+        isEnabled = false
+    }
+
     fun tickLength() {
         if (!lengthEnable || length == 0) return
         length--

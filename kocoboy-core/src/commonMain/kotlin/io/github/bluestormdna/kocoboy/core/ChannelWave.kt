@@ -80,6 +80,23 @@ class ChannelWave {
         wavePos = 0
     }
 
+    // While powered off DMG still takes the length, but not the rest of the register
+    fun setLengthOnly(value: Byte) {
+        length = 256 - (value.toInt() and 0xFF)
+    }
+
+    // DMG keeps the length counter when the APU is powered off
+    fun powerOff() {
+        val keptLength = length
+        setNR30DacEnable(0)
+        setNR31Length(0)
+        setNR32OutputLevel(0)
+        setNRx3PeriodLow(0)
+        setNRx4PeriodHiControl(0, false)
+        length = keptLength
+        isEnabled = false
+    }
+
     fun tickLength() {
         if (!lengthEnable || length == 0) return
         length--
