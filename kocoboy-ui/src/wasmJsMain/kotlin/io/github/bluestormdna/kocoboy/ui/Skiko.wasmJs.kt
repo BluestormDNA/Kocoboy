@@ -3,5 +3,5 @@
 
 package io.github.bluestormdna.kocoboy.ui
 
-// Skiko's wasm exports, filled in once it has loaded
+// Exported by skiko.mjs, its _ field holds skiko's wasm exports once loaded
 internal external val loadedWasm: JsAny
