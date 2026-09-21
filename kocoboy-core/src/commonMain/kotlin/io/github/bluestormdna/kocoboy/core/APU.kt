@@ -187,7 +187,15 @@ class APU(private val host: Host, private val scheduler: Scheduler, private val 
 
     @OptIn(ExperimentalUnsignedTypes::class)
     fun write(addr: Int, value: Byte) {
-        if (!apuEnabled && addr < 0x26) return
+        if (!apuEnabled && addr < 0x26) {
+            when (addr) {
+                0x11 -> channel1.setLengthOnly(value)
+                0x16 -> channel2.setLengthOnly(value)
+                0x1B -> channel3.setLengthOnly(value)
+                0x20 -> channel4.setLengthOnly(value)
+            }
+            return
+        }
 
         // A write changes what later samples hear, so the ones already due go out first
         renderSamples(clock)
@@ -312,29 +320,10 @@ class APU(private val host: Host, private val scheduler: Scheduler, private val 
     // todo check if further in-channel clean-up needed
     private fun resetAPU() {
         settleChannels()
-        channel1.sweep(0)
-        channel1.setNRx1LengthTimerDutyCycle(0)
-        channel1.setNRx2EnvelopeVolume(0)
-        channel1.setNRx3PeriodLow(0)
-        channel1.setNRx4PeriodHiControl(0, false)
-        channel1.disable()
-
-        channel2.setNRx1LengthTimerDutyCycle(0)
-        channel2.setNRx2EnvelopeVolume(0)
-        channel2.setNRx3PeriodLow(0)
-        channel2.setNRx4PeriodHiControl(0, false)
-        channel2.disable()
-
-        channel3.setNR30DacEnable(0)
-        channel3.setNR31Length(0)
-        channel3.setNR32OutputLevel(0)
-        channel3.setNRx3PeriodLow(0)
-        channel3.setNRx4PeriodHiControl(0, false)
-
-        channel4.setNR41Length(0)
-        channel4.setNRx2EnvelopeVolume(0)
-        channel4.setNR43Frequency(0)
-        channel4.setNR44Control(0, false)
+        channel1.powerOff()
+        channel2.powerOff()
+        channel3.powerOff()
+        channel4.powerOff()
 
         setNR50MasterVolume(0)
         setNR51Panning(0)
