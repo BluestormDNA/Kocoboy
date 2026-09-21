@@ -3,7 +3,7 @@ package io.github.bluestormdna.kocoboy.core
 import io.github.bluestormdna.kocoboy.host.Host
 import kotlin.experimental.or
 
-class APU(private val host: Host, private val scheduler: Scheduler) {
+class APU(private val host: Host, private val scheduler: Scheduler, private val timer: Timer) {
     private val bufferSize = 4096
     private var bufferPointer = 0
     private val sampleBuffer = ByteArray(bufferSize)
@@ -36,6 +36,9 @@ class APU(private val host: Host, private val scheduler: Scheduler) {
 
     private val clock: Long get() = scheduler.clock
 
+    // Length is clocked on the even steps
+    private val nextStepClocksLength: Boolean get() = (frameSequencerStep and 1) == 0
+
     private var nextSample: Long = 0
 
     fun reset() {
@@ -65,7 +68,7 @@ class APU(private val host: Host, private val scheduler: Scheduler) {
     }
 
     fun start() {
-        scheduler.schedule(Event.APU_SEQUENCER, FRAME_SEQUENCER_PERIOD)
+        scheduleNextStep()
         nextSample = clock + SAMPLE_PERIOD
         resyncChannels()
     }
@@ -88,9 +91,34 @@ class APU(private val host: Host, private val scheduler: Scheduler) {
         val at = scheduler.firedAt
         // The samples before the step still hear the old length, sweep and envelope
         renderSamples(at)
-        scheduler.reschedule(Event.APU_SEQUENCER, FRAME_SEQUENCER_PERIOD)
+        // The event fired on an edge, so the next one is a whole period away
+        scheduler.scheduleAt(Event.APU_SEQUENCER, at + FRAME_SEQUENCER_PERIOD)
+        step(at)
+    }
 
-        if ((frameSequencerStep and 0x1) == 0) {
+    // Writing DIV zeroes the divider, so a high bit 12 falls there and clocks an extra step
+    // Called before the write lands, while the outgoing counter can still be read
+    fun onDividerReset() {
+        if (!apuEnabled) return
+        val at = scheduler.clock
+        if (timer.counter and SEQUENCER_BIT != 0L) {
+            renderSamples(at)
+            step(at)
+        }
+        scheduler.scheduleAt(Event.APU_SEQUENCER, at + FRAME_SEQUENCER_PERIOD)
+    }
+
+    // Only needed when the phase is unknown: at start and at power on
+    private fun scheduleNextStep() {
+        val counter = timer.counter
+        scheduler.scheduleAt(
+            Event.APU_SEQUENCER,
+            scheduler.clock + (FRAME_SEQUENCER_PERIOD - counter.mod(FRAME_SEQUENCER_PERIOD)),
+        )
+    }
+
+    private fun step(at: Long) {
+        if (nextStepClocksLength) {
             channel1.tickLength()
             channel2.tickLength()
             channel3.tickLength()
@@ -176,23 +204,23 @@ class APU(private val host: Host, private val scheduler: Scheduler) {
             0x11 -> channel1.setNRx1LengthTimerDutyCycle(value)
             0x12 -> channel1.setNRx2EnvelopeVolume(value)
             0x13 -> channel1.setNRx3PeriodLow(value)
-            0x14 -> channel1.setNRx4PeriodHiControl(value)
+            0x14 -> channel1.setNRx4PeriodHiControl(value, nextStepClocksLength)
 
             0x16 -> channel2.setNRx1LengthTimerDutyCycle(value)
             0x17 -> channel2.setNRx2EnvelopeVolume(value)
             0x18 -> channel2.setNRx3PeriodLow(value)
-            0x19 -> channel2.setNRx4PeriodHiControl(value)
+            0x19 -> channel2.setNRx4PeriodHiControl(value, nextStepClocksLength)
 
             0x1A -> channel3.setNR30DacEnable(value)
             0x1B -> channel3.setNR31Length(value)
             0x1C -> channel3.setNR32OutputLevel(value)
             0x1D -> channel3.setNRx3PeriodLow(value)
-            0x1E -> channel3.setNRx4PeriodHiControl(value)
+            0x1E -> channel3.setNRx4PeriodHiControl(value, nextStepClocksLength)
 
             0x20 -> channel4.setNR41Length(value)
             0x21 -> channel4.setNRx2EnvelopeVolume(value)
             0x22 -> channel4.setNR43Frequency(value)
-            0x23 -> channel4.setNR44Control(value)
+            0x23 -> channel4.setNR44Control(value, nextStepClocksLength)
 
             0x24 -> setNR50MasterVolume(value)
             0x25 -> setNR51Panning(value)
@@ -274,6 +302,9 @@ class APU(private val host: Host, private val scheduler: Scheduler) {
         }
 
         if (!wasEnabled && apuEnabled) {
+            // Powering up restarts the sequencer and realigns it to the divider grid
+            frameSequencerStep = 0
+            scheduleNextStep()
             resyncChannels()
         }
     }
@@ -285,32 +316,33 @@ class APU(private val host: Host, private val scheduler: Scheduler) {
         channel1.setNRx1LengthTimerDutyCycle(0)
         channel1.setNRx2EnvelopeVolume(0)
         channel1.setNRx3PeriodLow(0)
-        channel1.setNRx4PeriodHiControl(0)
+        channel1.setNRx4PeriodHiControl(0, false)
         channel1.disable()
 
         channel2.setNRx1LengthTimerDutyCycle(0)
         channel2.setNRx2EnvelopeVolume(0)
         channel2.setNRx3PeriodLow(0)
-        channel2.setNRx4PeriodHiControl(0)
+        channel2.setNRx4PeriodHiControl(0, false)
         channel2.disable()
 
         channel3.setNR30DacEnable(0)
         channel3.setNR31Length(0)
         channel3.setNR32OutputLevel(0)
         channel3.setNRx3PeriodLow(0)
-        channel3.setNRx4PeriodHiControl(0)
+        channel3.setNRx4PeriodHiControl(0, false)
 
         channel4.setNR41Length(0)
         channel4.setNRx2EnvelopeVolume(0)
         channel4.setNR43Frequency(0)
-        channel4.setNR44Control(0)
+        channel4.setNR44Control(0, false)
 
         setNR50MasterVolume(0)
         setNR51Panning(0)
     }
 
     companion object {
-        private const val FRAME_SEQUENCER_PERIOD = 8192
+        private const val FRAME_SEQUENCER_PERIOD = 8192L
+        private const val SEQUENCER_BIT = 0x1000L
         private const val SAMPLE_PERIOD = 95
     }
 }

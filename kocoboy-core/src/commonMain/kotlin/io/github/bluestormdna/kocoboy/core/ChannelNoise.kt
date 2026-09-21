@@ -37,7 +37,7 @@ class ChannelNoise {
 
     fun setNR41Length(value: Byte) {
         nr41 = value
-        length = value.toInt() and 0x3F
+        length = 64 - (value.toInt() and 0x3F)
     }
 
     fun setNRx2EnvelopeVolume(value: Byte) {
@@ -59,13 +59,23 @@ class ChannelNoise {
         period = div shl clockShift
     }
 
-    fun setNR44Control(value: Byte) {
+    fun setNR44Control(value: Byte, nextStepClocksLength: Boolean) {
         nr44 = value or 0xBF.toByte()
         trigger = (value.toInt() and 0x80) != 0
+        val wasEnabled = lengthEnable
         lengthEnable = (value.toInt() and 0x40) != 0
+
+        if (!nextStepClocksLength && !wasEnabled && lengthEnable && length > 0) {
+            length--
+            if (length == 0 && !trigger) isEnabled = false
+        }
 
         if (trigger) {
             isEnabled = dacOn
+            if (length == 0) {
+                length = 64
+                if (!nextStepClocksLength && lengthEnable) length--
+            }
             counter = period
             envelopeCounter = envelopeSweep
             envelopeVolume = envelopeInitialVolume
@@ -74,10 +84,9 @@ class ChannelNoise {
     }
 
     fun tickLength() {
-        if (length > 0) length--
-        if (length == 0 && lengthEnable) {
-            isEnabled = false
-        }
+        if (!lengthEnable || length == 0) return
+        length--
+        if (length == 0) isEnabled = false
     }
 
     fun tickEnvelope() {

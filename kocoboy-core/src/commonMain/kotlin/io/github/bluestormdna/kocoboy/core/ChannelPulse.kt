@@ -50,7 +50,7 @@ class ChannelPulse {
     fun setNRx1LengthTimerDutyCycle(value: Byte) {
         nrx1 = value or 0x3F
         wavePatternDuty = (value.toInt() ushr 6) and 0x3
-        length = value.toInt() and 0x3F
+        length = 64 - (value.toInt() and 0x3F)
     }
 
     fun setNRx2EnvelopeVolume(value: Byte) {
@@ -67,23 +67,32 @@ class ChannelPulse {
         reloadPeriod()
     }
 
-    fun setNRx4PeriodHiControl(value: Byte) {
+    fun setNRx4PeriodHiControl(value: Byte, nextStepClocksLength: Boolean) {
         nrx4 = value or 0xBF.toByte()
         trigger = (value.toInt() and 0x80) != 0
+        val wasEnabled = lengthEnable
         lengthEnable = (value.toInt() and 0x40) != 0
         periodHi = (value.toUInt() and 0x7u).toUByte()
         reloadPeriod()
 
+        if (!nextStepClocksLength && !wasEnabled && lengthEnable && length > 0) {
+            length--
+            if (length == 0 && !trigger) isEnabled = false
+        }
+
         if (trigger) {
             trigger = false
 
-            handleTrigger()
+            handleTrigger(nextStepClocksLength)
         }
     }
 
-    private fun handleTrigger() {
+    private fun handleTrigger(nextStepClocksLength: Boolean) {
         isEnabled = dacOn
-        if (length == 0) length = 64
+        if (length == 0) {
+            length = 64
+            if (!nextStepClocksLength && lengthEnable) length--
+        }
         reloadPeriod()
         counter = periodCycles
         envelopeCounter = envelopeSweep
@@ -94,27 +103,25 @@ class ChannelPulse {
     }
 
     fun tickLength() {
-        if (length > 0) length--
-        if (length == 0 && lengthEnable) {
-            isEnabled = false
-        }
+        if (!lengthEnable || length == 0) return
+        length--
+        if (length == 0) isEnabled = false
     }
 
     fun tickSweep() {
         if (sweepCounter > 0) sweepCounter--
-        if (sweepTime > 0) {
-            if (sweepShift > 0 && sweepCounter == 0) {
-                val sweep = sweep()
-                if (sweep <= 2047 && sweepShift > 0) {
-                    periodHi = (sweep ushr 8).toUByte()
-                    nrx3periodLo = (sweep and 0xFF).toUByte()
-                    reloadPeriod()
+        // The overflow check runs whenever the pace is set, even with shift 0
+        if (sweepTime > 0 && sweepCounter == 0) {
+            val sweep = sweep()
+            if (sweep <= 2047 && sweepShift > 0) {
+                periodHi = (sweep ushr 8).toUByte()
+                nrx3periodLo = (sweep and 0xFF).toUByte()
+                reloadPeriod()
 
-                    sweep()
-                }
-
-                sweepCounter = sweepTime
+                sweep()
             }
+
+            sweepCounter = sweepTime
         }
     }
 

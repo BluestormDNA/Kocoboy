@@ -196,7 +196,10 @@ class Bus(
                         io[ioAddress] = (value or 0xE0).toByte()
                         scheduler.limit = 0
                     }
-                    in 0x03..0x07 -> timer.write(ioAddress, value.toByte())
+                    in 0x03..0x07 -> {
+                        if (ioAddress == 0x04) apu.onDividerReset()
+                        timer.write(ioAddress, value.toByte())
+                    }
                     in 0x10..0x3F -> apu.write(ioAddress, value.toByte())
                     // Lyc can cause interrupts on write
                     in 0x40..0x4B -> ppu.write(ioAddress, value.toByte(), this)
