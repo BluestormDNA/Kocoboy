@@ -50,32 +50,40 @@ class ChannelWave {
         reloadPeriod()
     }
 
-    fun setNRx4PeriodHiControl(value: Byte) {
+    fun setNRx4PeriodHiControl(value: Byte, nextStepClocksLength: Boolean) {
         nrx4 = value or 0xBF.toByte()
         trigger = (value.toUInt() and 0x80u) != 0u
+        val wasEnabled = lengthEnable
         lengthEnable = (value.toUInt() and 0x40u) != 0u
         periodHi = (value.toUInt() and 0x7u).toUByte()
         reloadPeriod()
 
+        if (!nextStepClocksLength && !wasEnabled && lengthEnable && length > 0) {
+            length--
+            if (length == 0 && !trigger) isEnabled = false
+        }
+
         if (trigger) {
             trigger = false
-            handleTrigger()
+            handleTrigger(nextStepClocksLength)
         }
     }
 
-    private fun handleTrigger() {
+    private fun handleTrigger(nextStepClocksLength: Boolean) {
         isEnabled = dacOn
-        if (length == 0) length = 256
+        if (length == 0) {
+            length = 256
+            if (!nextStepClocksLength && lengthEnable) length--
+        }
         reloadPeriod()
         counter = periodCycles
         wavePos = 0
     }
 
     fun tickLength() {
-        if (length > 0) length--
-        if (length == 0 && lengthEnable) {
-            isEnabled = false
-        }
+        if (!lengthEnable || length == 0) return
+        length--
+        if (length == 0) isEnabled = false
     }
 
     fun advanceTo(clock: Long) {
