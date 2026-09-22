@@ -28,6 +28,9 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
     // lcdc bit fields
     private var isEnabled: Boolean = false
 
+    // STAT's LY=LYC bit, frozen while the LCD is off
+    private var lycWhileOff = 0
+
     private var lcdOnAt: Long = 0
 
     private var renderFrame: Long = 0
@@ -58,19 +61,19 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
 
     private fun ly(): Int = if (isEnabled) positionAt(scheduler.clock) / SCANLINE_CYCLES else 0
 
-    private fun coincidence(): Boolean = ly() == lyc.toInt() and 0xFF
-
     // bit 7 is not wired and reads as 1
     private fun readStat(): Byte = (0x80 or stat.toInt() or statusAt(scheduler.clock)).toByte()
 
     // STAT's low bits: the mode, and the LY=LYC bit
     private fun statusAt(time: Long): Int {
-        if (!isEnabled) return if (coincidence()) 0x4 else 0
+        if (!isEnabled) return lycWhileOff
         val position = positionAt(time)
         val line = position / SCANLINE_CYCLES
         val dot = position % SCANLINE_CYCLES
         val coincidenceBit = if (line == lyc.toInt() and 0xFF) 0x4 else 0
         val mode = when {
+            // the first line after the LCD turns on skips the OAM scan
+            time - lcdOnAt < OAM_CYCLES -> 0
             line >= SCREEN_HEIGHT -> 1
             dot < OAM_CYCLES -> 2
             dot < HBLANK_DOT -> 3
@@ -98,6 +101,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
                 drawDueLines(scheduler.clock, bus)
                 val wasEnabled = isBit(7, lcdc)
                 val lineBefore = statLineAt(scheduler.clock)
+                if (wasEnabled) lycWhileOff = statusAt(scheduler.clock) and 0x4
                 lcdc = value
                 isEnabled = isBit(7, value)
 
@@ -434,6 +438,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
     fun reset() {
         lcdc = 0
         isEnabled = false
+        lycWhileOff = 0
         stat = 0
         scy = 0
         scx = 0
