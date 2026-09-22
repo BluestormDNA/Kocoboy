@@ -96,9 +96,9 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
         }
 
     private var M: Int
-        get() = bus.readByte(HL)
+        get() = read(HL)
         set(value) {
-            bus.writeByte(HL, value)
+            write(HL, value)
         }
 
     private var PC: Int = 0
@@ -146,19 +146,29 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
     private inline fun Int.lo() = this and 0xFF
 
-    private var cycles = 0
+    // Every bus access and internal step is one M-cycle on the clock
+    private inline fun tick() = scheduler.advance(4)
 
-    private inline fun fetch(): Int = bus.readByte(PC++)
+    private inline fun read(addr: Int): Int {
+        val value = bus.readByte(addr)
+        tick()
+        return value
+    }
+
+    private inline fun write(addr: Int, value: Int) {
+        bus.writeByte(addr, value)
+        tick()
+    }
+
+    private inline fun fetch(): Int = read(PC++)
 
     private var debug = false
 
-    fun execute(): Int {
+    fun execute() {
         // if (debug) {
         //    //val line = generateInstructionLog()
         //    //println(line)
         // }
-
-        cycles = 0
 
         val opcode = fetch()
 
@@ -171,8 +181,8 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
         when (opcode) {
             0x00 -> Unit
             0x01 -> BC = fetchWord()
-            0x02 -> bus.writeByte(BC, A)
-            0x03 -> BC++
+            0x02 -> write(BC, A)
+            0x03 -> BC = incReg16(BC)
             0x04 -> B = incReg8(B)
             0x05 -> B = decReg8(B)
             0x06 -> B = fetch()
@@ -180,13 +190,13 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
             0x08 -> {
                 val imm16 = fetchWord()
-                bus.writeByte(imm16, SP and 0xFF)
-                bus.writeByte(imm16 + 1, SP shr 8 and 0xFF)
+                write(imm16, SP and 0xFF)
+                write((imm16 + 1) and 0xFFFF, SP shr 8 and 0xFF)
             }
 
             0x09 -> dad(BC)
-            0x0A -> A = bus.readByte(BC)
-            0x0B -> BC--
+            0x0A -> A = read(BC)
+            0x0B -> BC = decReg16(BC)
             0x0C -> C = incReg8(C)
             0x0D -> C = decReg8(C)
             0x0E -> C = fetch()
@@ -194,8 +204,8 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
             0x10 -> stop()
             0x11 -> DE = fetchWord()
-            0x12 -> bus.writeByte(DE, A)
-            0x13 -> DE++
+            0x12 -> write(DE, A)
+            0x13 -> DE = incReg16(DE)
             0x14 -> D = incReg8(D)
             0x15 -> D = decReg8(D)
             0x16 -> D = fetch()
@@ -203,8 +213,8 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
             0x18 -> jr(true)
             0x19 -> dad(DE)
-            0x1A -> A = bus.readByte(DE)
-            0x1B -> DE--
+            0x1A -> A = read(DE)
+            0x1B -> DE = decReg16(DE)
             0x1C -> E = incReg8(E)
             0x1D -> E = decReg8(E)
             0x1E -> E = fetch()
@@ -212,8 +222,8 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
             0x20 -> jr(!flagZ)
             0x21 -> HL = fetchWord()
-            0x22 -> bus.writeByte(HL++, A)
-            0x23 -> HL++
+            0x22 -> write(HL++, A)
+            0x23 -> HL = incReg16(HL)
             0x24 -> H = incReg8(H)
             0x25 -> H = decReg8(H)
             0x26 -> H = fetch()
@@ -221,8 +231,8 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
             0x28 -> jr(flagZ)
             0x29 -> dad(HL)
-            0x2A -> A = bus.readByte(HL++)
-            0x2B -> HL--
+            0x2A -> A = read(HL++)
+            0x2B -> HL = decReg16(HL)
             0x2C -> L = incReg8(L)
             0x2D -> L = decReg8(L)
             0x2E -> L = fetch()
@@ -230,8 +240,8 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
             0x30 -> jr(!flagC)
             0x31 -> SP = fetchWord()
-            0x32 -> bus.writeByte(HL--, A)
-            0x33 -> SP++
+            0x32 -> write(HL--, A)
+            0x33 -> SP = incReg16(SP)
             0x34 -> M = incReg8(M)
             0x35 -> M = decReg8(M)
             0x36 -> M = fetch()
@@ -239,8 +249,8 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
             0x38 -> jr(flagC)
             0x39 -> dad(SP)
-            0x3A -> A = bus.readByte(HL--)
-            0x3B -> SP--
+            0x3A -> A = read(HL--)
+            0x3B -> SP = decReg16(SP)
             0x3C -> A = incReg8(A)
             0x3D -> A = decReg8(A)
             0x3E -> A = fetch()
@@ -390,7 +400,7 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
             0xBE -> cp(M)
             0xBF -> cp(A)
 
-            0xC0 -> ret(!flagZ)
+            0xC0 -> retIf(!flagZ)
             0xC1 -> BC = pop()
             0xC2 -> jp(!flagZ)
             0xC3 -> jp(true) // PC = imm16
@@ -399,8 +409,8 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
             0xC6 -> add(fetch())
             0xC7 -> rst(0x0)
 
-            0xC8 -> ret(flagZ)
-            0xC9 -> PC = pop() // ret(true) Unconditional return shortcut as ret true adds cycles
+            0xC8 -> retIf(flagZ)
+            0xC9 -> ret()
             0xCA -> jp(flagZ)
             0xCB -> prefixCB()
             0xCC -> call(flagZ)
@@ -408,7 +418,7 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
             0xCE -> adc(fetch())
             0xCF -> rst(0x8)
 
-            0xD0 -> ret(!flagC)
+            0xD0 -> retIf(!flagC)
             0xD1 -> DE = pop()
             0xD2 -> jp(!flagC)
             0xD3 -> Unit
@@ -417,9 +427,9 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
             0xD6 -> sub(fetch())
             0xD7 -> rst(0x10)
 
-            0xD8 -> ret(flagC)
+            0xD8 -> retIf(flagC)
             0xD9 -> {
-                PC = pop() // ret(true) Unconditional return shortcut as ret true adds cycles
+                ret()
                 ime = true
                 scheduler.limit = 0
             }
@@ -431,45 +441,52 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
             0xDE -> sbc(fetch())
             0xDF -> rst(0x18)
 
-            0xE0 -> bus.writeByte(0xFF00 + fetch(), A)
+            0xE0 -> write(0xFF00 + fetch(), A)
             0xE1 -> HL = pop()
-            0xE2 -> bus.writeByte(0xFF00 + C, A)
+            0xE2 -> write(0xFF00 + C, A)
             0xE3 -> Unit
             0xE4 -> Unit
             0xE5 -> push(HL)
             0xE6 -> and(fetch())
             0xE7 -> rst(0x20)
 
-            0xE8 -> SP = addSigned8(SP, fetch())
+            0xE8 -> {
+                SP = addSigned8(SP, fetch())
+                tick()
+                tick()
+            }
             0xE9 -> PC = HL // Direct Jump
-            0xEA -> bus.writeByte(fetchWord(), A)
+            0xEA -> write(fetchWord(), A)
             0xEB -> Unit
             0xEC -> Unit
             0xED -> Unit
             0xEE -> xor(fetch())
             0xEF -> rst(0x28)
 
-            0xF0 -> A = bus.readByte(0xFF00 + fetch())
+            0xF0 -> A = read(0xFF00 + fetch())
             0xF1 -> AF = pop()
-            0xF2 -> A = bus.readByte(0xFF00 + C)
+            0xF2 -> A = read(0xFF00 + C)
             0xF3 -> di()
             0xF4 -> Unit
             0xF5 -> push(AF)
             0xF6 -> or(fetch())
             0xF7 -> rst(0x30)
 
-            0xF8 -> HL = addSigned8(SP, fetch())
-            0xF9 -> SP = HL
-            0xFA -> A = bus.readByte(fetchWord())
+            0xF8 -> {
+                HL = addSigned8(SP, fetch())
+                tick()
+            }
+            0xF9 -> {
+                SP = HL
+                tick()
+            }
+            0xFA -> A = read(fetchWord())
             0xFB -> ei()
             0xFC -> Unit
             0xFD -> Unit
             0xFE -> cp(fetch())
             0xFF -> rst(0x38)
         }
-
-        cycles += CpuCycles.opcodeCycles[opcode]
-        return cycles
     }
 
     private fun prefixCB() {
@@ -764,8 +781,6 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
             0xFE -> M = set(0x80, M)
             0xFF -> A = set(0x80, A)
         }
-
-        cycles += CpuCycles.opcodeCBCycles[opcode]
     }
 
     private fun halt() {
@@ -776,23 +791,20 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
             // No flag pending, nothing changes before the next event
             // so skip there instead of re-running HALT 4 cycles at a time
             if (flags == 0) {
-                val wakeAt = scheduler.nextDeadline
-                val haltedCycles = wakeAt - scheduler.clock
-                // This HALT is +4 cycles, add the re-runs that still fit before wakeAt
-                // so the clock lands on the same cycle the slow loop would have
-                cycles += ((haltedCycles - 1) / 4 * 4).toInt()
+                // Land on the first re-run boundary at or after the event, as the slow loop would
+                scheduler.advance(((scheduler.nextDeadline - scheduler.clock + 3) / 4 * 4).toInt())
             }
         } else {
             haltBug = true
         }
     }
 
-    fun step(): Int {
+    fun step() {
         val pending = bus.interruptFlags.toInt() and bus.interruptEnabled.toInt() and 0x1F
         val dispatched = pending != 0 && handleInterrupt()
         ime = ime or imeEnabler
         imeEnabler = false
-        return if (dispatched) CpuCycles.ControlFlowCycles.INTERRUPT_DISPATCH else execute()
+        if (!dispatched) execute()
     }
 
     // True while the interrupt check and the EI delay in step() would both do nothing
@@ -808,10 +820,15 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
         }
         if (!ime) return false
         ime = false
-        bus.writeByte(--SP, PC.hi())
-        // the vector is chosen after the high byte, which can land on IE and cancel the dispatch
+        // Two internal cycles before PC goes out, one after to jump
+        tick()
+        tick()
+        write(--SP, PC.hi())
+        // The vector is chosen after the high byte, which can land on IE and cancel the dispatch
+        bus.dispatchDue()
         val pending = bus.interruptFlags.toInt() and bus.interruptEnabled.toInt() and 0x1F
-        bus.writeByte(--SP, PC.lo())
+        write(--SP, PC.lo())
+        tick()
         if (pending == 0) {
             PC = 0
             return true
@@ -871,6 +888,7 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
     }
 
     private fun ei() {
+        if (ime) return
         imeEnabler = true
         scheduler.limit = 0
     }
@@ -885,19 +903,22 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
     }
 
     private fun jp(flag: Boolean) {
+        val target = fetchWord()
         if (flag) {
-            PC = fetchWord()
-            cycles += CpuCycles.ControlFlowCycles.JP
-        } else {
-            PC += 2
+            tick()
+            PC = target
         }
     }
 
-    private fun ret(flag: Boolean) {
-        if (flag) {
-            PC = pop()
-            cycles += CpuCycles.ControlFlowCycles.RET
-        }
+    private fun ret() {
+        PC = pop()
+        tick()
+    }
+
+    // The condition check costs a cycle that RET does not have
+    private fun retIf(flag: Boolean) {
+        tick()
+        if (flag) ret()
     }
 
     private fun rra() {
@@ -927,13 +948,11 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
     }
 
     private fun jr(flag: Boolean) {
+        val rel = fetch().toByte()
         if (flag) {
-            val rel = fetch().toByte()
             if (rel < 0) skipIdlePasses()
+            tick()
             PC += rel
-            cycles += CpuCycles.ControlFlowCycles.JR
-        } else {
-            PC++
         }
     }
 
@@ -950,7 +969,7 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
             val pass = at - idleClock
             val skipped = (deadline - 1 - at) / pass * pass
             if (skipped > 0) {
-                cycles += skipped.toInt()
+                scheduler.advance(skipped.toInt())
                 at += skipped
             }
         }
@@ -964,6 +983,7 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
     }
 
     private fun dad(value: Int) {
+        tick()
         val result = HL + value
         flagN = false
         flagH = ((HL and 0xFFF) + (value and 0xFFF)) > 0xFFF
@@ -975,6 +995,17 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
         val lo = fetch()
         val hi = fetch()
         return hi shl 8 or lo
+    }
+
+    // 16-bit inc and dec take an internal cycle
+    private fun incReg16(value: Int): Int {
+        tick()
+        return value + 1
+    }
+
+    private fun decReg16(value: Int): Int {
+        tick()
+        return value - 1
     }
 
     private fun incReg8(value: Int): Int {
@@ -1076,23 +1107,23 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
     }
 
     private fun call(flag: Boolean) {
+        val target = fetchWord()
         if (flag) {
-            push(PC + 2)
-            PC = fetchWord()
-            cycles += CpuCycles.ControlFlowCycles.CALL
-        } else {
-            PC += 2
+            push(PC)
+            PC = target
         }
     }
 
+    // An internal cycle decrements SP before the high byte goes out
     private fun push(word: Int) {
-        bus.writeByte(--SP, word.hi())
-        bus.writeByte(--SP, word.lo())
+        tick()
+        write(--SP, word.hi())
+        write(--SP, word.lo())
     }
 
     private fun pop(): Int {
-        val lo = bus.readByte(SP++)
-        val hi = bus.readByte(SP++)
+        val lo = read(SP++)
+        val hi = read(SP++)
         val value = hi shl 8 or lo
         return value
     }

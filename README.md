@@ -15,10 +15,6 @@ An experimental Kotlin Multiplatform, Compose Multiplatform, GameBoy Emulator th
 </table>
 
 
-> [!NOTE]  
-> KocoBoy can run many games, demos and tests but it is not a M-Cycle or micro-ops accurate emulator.  
-> Accuracy and syncronization between the various memory mapped devices relies on hardcoded fixed values and varies from 4 to 24 CPU cycles depending on the executed opcode or hardware interrupt.
-
 ## Compatibility
 
 Game Boy catalog compatibility support is focused on the most popular cartridges types (MBCs 1,2,3 and 5).  

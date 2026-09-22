@@ -113,23 +113,13 @@ class Emulator(
         scheduler.scheduleAt(Event.FRAME_END, frameEnd)
         joypad.latch(bus)
         while (scheduler.clock < frameEnd) {
-            scheduler.advance(cpu.step())
+            cpu.step()
             if (cpu.interruptsQuiet()) {
                 // Nothing can fire before the next event, so run bare instructions up to it
                 scheduler.limit = scheduler.nextDeadline
-                while (scheduler.clock < scheduler.limit) scheduler.advance(cpu.execute())
+                while (scheduler.clock < scheduler.limit) cpu.execute()
             }
-            while (scheduler.clock >= scheduler.nextDeadline) dispatch(scheduler.pollDue())
-        }
-    }
-
-    private fun dispatch(event: Int) {
-        when (event) {
-            Event.PPU -> ppu.onEvent(bus)
-            Event.TIMER_OVERFLOW -> timer.onOverflow()
-            Event.TIMER_RELOAD -> timer.onReload(bus)
-            Event.APU_SEQUENCER -> apu.onFrameSequencer()
-            Event.SERIAL -> serial.onTransferComplete(bus)
+            if (scheduler.clock >= scheduler.nextDeadline) bus.dispatchDue()
         }
     }
 
