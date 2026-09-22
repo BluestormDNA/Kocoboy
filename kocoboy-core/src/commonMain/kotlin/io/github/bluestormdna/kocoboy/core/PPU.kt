@@ -60,7 +60,8 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
 
     private fun coincidence(): Boolean = ly() == lyc.toInt() and 0xFF
 
-    private fun readStat(): Byte = (stat.toInt() or statusAt(scheduler.clock)).toByte()
+    // bit 7 is not wired and reads as 1
+    private fun readStat(): Byte = (0x80 or stat.toInt() or statusAt(scheduler.clock)).toByte()
 
     // STAT's low bits: the mode, and the LY=LYC bit
     private fun statusAt(time: Long): Int {
