@@ -89,9 +89,8 @@ class Bus(
     }
 
     private fun initializeRegisters() {
-        // FF4D - KEY1 - CGB Mode Only - Prepare Speed Switch
-        // HardCoded to FF to identify DMG as 00 is GBC
-        io[0x4D] = 0xFF.toByte()
+        // the boot ROM hands over with VBlank pending
+        io[0x0F] = 0xE1.toByte()
 
         ppu.write(0x40, 0x91.toByte(), this)
         ppu.write(0x47, 0xFC.toByte(), this)
@@ -102,9 +101,11 @@ class Bus(
         apu.write(0x26, 0xF1.toByte())
         apu.write(0x10, 0x80.toByte())
         apu.write(0x11, 0xBF.toByte())
+        // the boot chime leaves channel 1 on, its envelope run down to silence
+        apu.write(0x12, 0x08.toByte())
+        apu.write(0x14, 0xBF.toByte())
         apu.write(0x12, 0xF3.toByte())
         // NRx4 post-boot values read as 0xBF, bit 7 is write-only trigger so mask it off
-        apu.write(0x14, 0x3F.toByte())
         apu.write(0x16, 0x3F.toByte())
         apu.write(0x19, 0x3F.toByte())
         apu.write(0x1A, 0x7F.toByte())
@@ -159,7 +160,9 @@ class Bus(
                     in 0x03..0x07 -> timer.read(ioAddress).toInt() and 0xFF
                     in 0x10..0x3F -> apu.read(ioAddress).toInt() and 0xFF
                     in 0x40..0x4B -> ppu.read(ioAddress).toInt() and 0xFF
-                    else -> io[ioAddress].toInt() and 0xFF
+                    0x0F -> io[0x0F].toInt() and 0xFF
+                    // unmapped registers are not wired and read as FF
+                    else -> 0xFF
                 }
             }
             in 0xFF80..0xFFFF -> hRam[addr and 0x7F].toInt() and 0xFF
@@ -223,7 +226,9 @@ class Bus(
     fun readVRAM(addr: Int): Int = vRam[addr and 0x1FFF].toInt() and 0xFF
 
     fun handleDma(value: Byte): Int {
-        val addr = (value.toInt() and 0xFF) shl 8
+        val source = (value.toInt() and 0xFF) shl 8
+        // Work Ram ignores bit 13
+        val addr = if (source >= 0xE000) source and 0xDFFF else source
         for (i in oam.indices) {
             oam[i] = readByte(addr + i).toByte()
         }

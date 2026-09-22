@@ -28,6 +28,9 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
     // lcdc bit fields
     private var isEnabled: Boolean = false
 
+    // STAT's LY=LYC bit, frozen while the LCD is off
+    private var lycWhileOff = 0
+
     private var lcdOnAt: Long = 0
 
     private var renderFrame: Long = 0
@@ -58,21 +61,37 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
 
     private fun ly(): Int = if (isEnabled) positionAt(scheduler.clock) / SCANLINE_CYCLES else 0
 
-    private fun coincidence(): Boolean = ly() == lyc.toInt() and 0xFF
+    // bit 7 is not wired and reads as 1
+    private fun readStat(): Byte = (0x80 or stat.toInt() or statusAt(scheduler.clock)).toByte()
 
-    private fun readStat(): Byte {
-        if (!isEnabled) return (stat.toInt() or (if (coincidence()) 0x4 else 0)).toByte()
-        val position = positionAt(scheduler.clock)
+    // STAT's low bits: the mode, and the LY=LYC bit
+    private fun statusAt(time: Long): Int {
+        if (!isEnabled) return lycWhileOff
+        val position = positionAt(time)
         val line = position / SCANLINE_CYCLES
         val dot = position % SCANLINE_CYCLES
         val coincidenceBit = if (line == lyc.toInt() and 0xFF) 0x4 else 0
         val mode = when {
+            // the first line after the LCD turns on skips the OAM scan
+            time - lcdOnAt < OAM_CYCLES -> 0
             line >= SCREEN_HEIGHT -> 1
             dot < OAM_CYCLES -> 2
             dot < HBLANK_DOT -> 3
             else -> 0
         }
-        return (stat.toInt() or coincidenceBit or mode).toByte()
+        return coincidenceBit or mode
+    }
+
+    // the enabled sources share one line, only its rising edge requests the interrupt
+    private fun statLineAt(time: Long): Boolean {
+        val status = statusAt(time)
+        val mode = status and 0x3
+        // enables 3 to 5 are modes 0 to 2, mode 3 has none
+        return (mode != 3 && isBit(3 + mode, stat)) || (status and 0x4 != 0 && isBit(6, stat))
+    }
+
+    private fun requestOnRise(before: Boolean, time: Long, bus: Bus) {
+        if (!before && statLineAt(time)) bus.requestInterrupt(LCD_INTERRUPT)
     }
 
     fun write(ioAddress: Int, value: Byte, bus: Bus) {
@@ -81,6 +100,8 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
                 if (value == lcdc) return
                 drawDueLines(scheduler.clock, bus)
                 val wasEnabled = isBit(7, lcdc)
+                val lineBefore = statLineAt(scheduler.clock)
+                if (wasEnabled) lycWhileOff = statusAt(scheduler.clock) and 0x4
                 lcdc = value
                 isEnabled = isBit(7, value)
 
@@ -96,11 +117,13 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
 
                 if (!wasEnabled and isEnabled) {
                     startTimeline()
-                    if (coincidence() && isBit(6, stat)) bus.requestInterrupt(LCD_INTERRUPT)
+                    requestOnRise(lineBefore, scheduler.clock, bus)
                 }
             }
             0x41 -> {
+                val lineBefore = statLineAt(scheduler.clock)
                 stat = value and 0xF8.toByte()
+                requestOnRise(lineBefore, scheduler.clock, bus)
                 if (isEnabled) scheduleNext(scheduler.clock)
             }
             0x42 -> {
@@ -113,8 +136,9 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
             }
             0x44 -> Unit // LY is read only
             0x45 -> {
+                val lineBefore = statLineAt(scheduler.clock)
                 lyc = value
-                if (coincidence() && isBit(6, stat)) bus.requestInterrupt(LCD_INTERRUPT)
+                requestOnRise(lineBefore, scheduler.clock, bus)
                 if (isEnabled) scheduleNext(scheduler.clock)
             }
             0x46 -> {
@@ -178,15 +202,8 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
             windowTriggeredThisFrame = false
             host.render(frameBuffer)
             bus.requestInterrupt(VBLANK_INTERRUPT)
-            if (isBit(4, stat)) bus.requestInterrupt(LCD_INTERRUPT)
         }
-        if (line < SCREEN_HEIGHT) {
-            if (dot == HBLANK_DOT && isBit(3, stat)) bus.requestInterrupt(LCD_INTERRUPT)
-            if (dot == 0 && isBit(5, stat)) bus.requestInterrupt(LCD_INTERRUPT)
-        }
-        if (dot == 0 && line == lyc.toInt() and 0xFF && isBit(6, stat)) {
-            bus.requestInterrupt(LCD_INTERRUPT)
-        }
+        requestOnRise(statLineAt(at - 1), at, bus)
 
         scheduleNext(at)
     }
@@ -421,6 +438,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
     fun reset() {
         lcdc = 0
         isEnabled = false
+        lycWhileOff = 0
         stat = 0
         scy = 0
         scx = 0

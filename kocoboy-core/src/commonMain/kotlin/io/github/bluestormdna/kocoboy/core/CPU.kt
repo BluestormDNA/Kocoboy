@@ -789,7 +789,7 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
     fun step(): Int {
         val pending = bus.interruptFlags.toInt() and bus.interruptEnabled.toInt() and 0x1F
-        val dispatched = pending != 0 && handleInterrupt(pending.countTrailingZeroBits())
+        val dispatched = pending != 0 && handleInterrupt()
         ime = ime or imeEnabler
         imeEnabler = false
         return if (dispatched) CpuCycles.ControlFlowCycles.INTERRUPT_DISPATCH else execute()
@@ -801,15 +801,23 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
         return !imeEnabler && (pending == 0 || !(ime || halted))
     }
 
-    private fun handleInterrupt(b: Int): Boolean {
+    private fun handleInterrupt(): Boolean {
         if (halted) {
             PC++
             halted = false
         }
         if (!ime) return false
-        push(PC)
-        PC = (0x40 + (8 * b))
         ime = false
+        bus.writeByte(--SP, PC.hi())
+        // the vector is chosen after the high byte, which can land on IE and cancel the dispatch
+        val pending = bus.interruptFlags.toInt() and bus.interruptEnabled.toInt() and 0x1F
+        bus.writeByte(--SP, PC.lo())
+        if (pending == 0) {
+            PC = 0
+            return true
+        }
+        val b = pending.countTrailingZeroBits()
+        PC = 0x40 + 8 * b
         bus.clearInterrupt(b)
         return true
     }
