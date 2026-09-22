@@ -1,32 +1,35 @@
+@file:OptIn(ExperimentalWasmJsInterop::class, UnsafeWasmMemoryApi::class)
+
 package io.github.bluestormdna.kocoboy.ui
 
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asComposeImageBitmap
+import kotlin.wasm.unsafe.UnsafeWasmMemoryApi
+import kotlin.wasm.unsafe.withScopedMemoryAllocator
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ColorType
 import org.jetbrains.skia.ImageInfo
 
+private val bitmap = Bitmap().apply {
+    allocPixels(ImageInfo(160, 144, ColorType.N32, alphaType = ColorAlphaType.OPAQUE))
+}
+
+private val address = bitmap.peekPixels()!!.addr
+
 actual fun createImageBitmapFromIntArray(intArray: IntArray, width: Int, height: Int): ImageBitmap {
-    val screenImageInfo = ImageInfo(160, 144, ColorType.N32, alphaType = ColorAlphaType.OPAQUE)
-
-    val byteArray = intArray.toByteArray()
-
-    return Bitmap().apply {
-        installPixels(screenImageInfo, byteArray, 160 * 4)
-    }.asComposeImageBitmap()
-}
-
-// todo
-// https://youtrack.jetbrains.com/issue/KT-30098
-fun IntArray.toByteArray(): ByteArray {
-    val byteArray = ByteArray(this.size * 4)
-    for (i in this.indices) {
-        val color = this[i]
-        byteArray[i * 4] = (color and 0xFF).toByte()
-        byteArray[i * 4 + 1] = (color shr 8).toByte()
-        byteArray[i * 4 + 2] = (color shr 16).toByte()
-        byteArray[i * 4 + 3] = (color shr 24).toByte()
+    val size = intArray.size * Int.SIZE_BYTES
+    // Staged in our own linear memory so reaching skiko's is one copy, not a call per pixel
+    withScopedMemoryAllocator { allocator ->
+        val staging = allocator.allocate(size)
+        for (i in intArray.indices) (staging + i * Int.SIZE_BYTES).storeInt(intArray[i])
+        copyToSkiko(loadedWasm, staging.address.toInt(), address, size)
     }
-    return byteArray
+    bitmap.notifyPixelsChanged()
+    return bitmap.asComposeImageBitmap()
 }
+
+// Copies size bytes from our wasm memory at from into skiko's wasm memory at to
+private fun copyToSkiko(loadedWasm: JsAny, from: Int, to: Int, size: Int): Unit = js(
+    "new Uint8Array(loadedWasm._.memory.buffer, to, size).set(new Uint8Array(wasmExports.memory.buffer, from, size))",
+)
