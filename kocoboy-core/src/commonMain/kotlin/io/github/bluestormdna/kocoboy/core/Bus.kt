@@ -223,7 +223,9 @@ class Bus(
     fun readVRAM(addr: Int): Int = vRam[addr and 0x1FFF].toInt() and 0xFF
 
     fun handleDma(value: Byte): Int {
-        val addr = (value.toInt() and 0xFF) shl 8
+        val source = (value.toInt() and 0xFF) shl 8
+        // Work Ram ignores bit 13
+        val addr = if (source >= 0xE000) source and 0xDFFF else source
         for (i in oam.indices) {
             oam[i] = readByte(addr + i).toByte()
         }
