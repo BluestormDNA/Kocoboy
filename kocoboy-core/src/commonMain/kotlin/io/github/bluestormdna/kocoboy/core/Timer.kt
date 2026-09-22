@@ -7,6 +7,9 @@ class Timer(private val scheduler: Scheduler) {
     private var tima = 0
     private var timaAt: Long = 0
 
+    // When TMA was last copied into TIMA, writes in that M-cycle behave differently
+    private var reloadedAt = Long.MIN_VALUE / 2
+
     private var tma = 0
     private var tac = 0
     private var tacEnabled = false
@@ -37,6 +40,7 @@ class Timer(private val scheduler: Scheduler) {
     }
 
     fun onReload(bus: Bus) {
+        reloadedAt = scheduler.firedAt
         tima = tma
         bus.requestInterrupt(TIMER_INTERRUPT)
         scheduleOverflow()
@@ -67,12 +71,16 @@ class Timer(private val scheduler: Scheduler) {
                 scheduleOverflow()
             }
             5 -> {
+                if (inReloadCycle()) return
                 scheduler.cancel(Event.TIMER_RELOAD)
                 tima = value.toInt() and 0xFF
                 timaAt = scheduler.clock
                 scheduleOverflow()
             }
-            6 -> tma = value.toInt() and 0xFF
+            6 -> {
+                tma = value.toInt() and 0xFF
+                if (inReloadCycle()) tima = tma
+            }
             7 -> {
                 settle()
                 val wasHigh = timerSignal()
@@ -84,6 +92,8 @@ class Timer(private val scheduler: Scheduler) {
             }
         }
     }
+
+    private fun inReloadCycle(): Boolean = scheduler.clock - reloadedAt < 4
 
     fun read(address: Int): Byte = when (address) {
         4 -> (counter ushr 8).toByte()
@@ -97,6 +107,7 @@ class Timer(private val scheduler: Scheduler) {
         divBase = scheduler.clock - DIVIDER_AT_BOOT
         tima = 0
         timaAt = scheduler.clock
+        reloadedAt = Long.MIN_VALUE / 2
         tma = 0
         tac = 0
         tacEnabled = false

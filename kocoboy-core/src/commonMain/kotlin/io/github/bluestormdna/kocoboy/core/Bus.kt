@@ -145,6 +145,7 @@ class Bus(
             in 0xFE00..0xFE9F -> oam[addr and 0xFF].toInt() and 0xFF
             in 0xFEA0..0xFEFF -> 0x00 // Not usable
             in 0xFF00..0xFF7F -> {
+                dispatchDue()
                 when (val ioAddress = addr and 0x7F) {
                     0x00 -> joypad.read().toInt() and 0xFF
                     0x01, 0x02 -> serial.read(ioAddress).toInt() and 0xFF
@@ -192,6 +193,7 @@ class Bus(
             }
             in 0xFEA0..0xFEFF -> Unit // Not usable
             in 0xFF00..0xFF7F -> { // IO
+                dispatchDue()
                 when (val ioAddress = addr and 0x7F) {
                     0x00 -> joypad.write(value.toByte(), this)
                     0x01, 0x02 -> serial.write(ioAddress, value.toByte())
@@ -211,6 +213,7 @@ class Bus(
             }
 
             0xFFFF -> {
+                dispatchDue()
                 hRam[0x7F] = value.toByte()
                 scheduler.limit = 0
             }
@@ -218,6 +221,19 @@ class Bus(
             else -> throw IllegalStateException(
                 "Attempting to write ${byte.toHexString()} to ${addr.toHexString()}",
             )
+        }
+    }
+
+    // IO accesses call this so events due inside an instruction fire first
+    fun dispatchDue() {
+        while (scheduler.clock >= scheduler.nextDeadline) {
+            when (scheduler.pollDue()) {
+                Event.PPU -> ppu.onEvent(this)
+                Event.TIMER_OVERFLOW -> timer.onOverflow()
+                Event.TIMER_RELOAD -> timer.onReload(this)
+                Event.APU_SEQUENCER -> apu.onFrameSequencer()
+                Event.SERIAL -> serial.onTransferComplete(this)
+            }
         }
     }
 
