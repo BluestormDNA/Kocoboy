@@ -47,11 +47,14 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
@@ -63,6 +66,7 @@ import kocoboy.ui.resources.Res
 import kocoboy.ui.resources.lato_regular
 import kocoboy.ui.resources.leaguespartan_regular
 import kocoboy.ui.resources.nes_controller
+import kocoboy.ui.resources.notosanssymbols_triangles
 import kocoboy.ui.resources.pretendo
 import kotlin.jvm.JvmInline
 import org.jetbrains.compose.resources.Font
@@ -124,7 +128,12 @@ fun PowerRow(modifier: Modifier = Modifier.height(IntrinsicSize.Min)) {
                     ),
                 ),
                 autoSize = TextAutoSize.StepBased(minFontSize = 2.sp, stepSize = 1.sp),
-                text = "◀OFF·ON▶",
+                text = buildAnnotatedString {
+                    val triangles = SpanStyle(fontFamily = NotoSansSymbolsTriangles())
+                    withStyle(triangles) { append('◀') }
+                    append("OFF·ON")
+                    withStyle(triangles) { append('▶') }
+                },
             )
             Spacer(modifier.aspectRatio(1 / 8f))
             Box(
@@ -845,6 +854,10 @@ fun LeagueSpartan() = FontFamily(Font(Res.font.leaguespartan_regular))
 
 @Composable
 fun NesController() = FontFamily(Font(Res.font.nes_controller))
+
+// Only ◀ and ▶, cut from Noto Sans Symbols 1.09 (OFL), the font Android falls back to for them
+@Composable
+fun NotoSansSymbolsTriangles() = FontFamily(Font(Res.font.notosanssymbols_triangles))
 
 val dropShadow = Brush.sweepGradient(
     listOf(
