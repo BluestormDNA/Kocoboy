@@ -31,6 +31,9 @@ class MainViewModel(private val platformAudioPlayer: AudioPlayer) : ViewModel() 
     private val _screenTheme = MutableStateFlow<ScreenTheme>(ClassicScreenTheme)
     val screenTheme = _screenTheme.asStateFlow()
 
+    private val _haptics = MutableStateFlow(true)
+    val haptics = _haptics.asStateFlow()
+
     private var currentFrameCounter = 0
 
     val vps = MutableStateFlow(0)
@@ -83,6 +86,10 @@ class MainViewModel(private val platformAudioPlayer: AudioPlayer) : ViewModel() 
 
     fun themeChange(colorTheme: ColorTheme) {
         _colorTheme.value = colorTheme
+    }
+
+    fun hapticsChange(enabled: Boolean) {
+        _haptics.value = enabled
     }
 
     companion object {

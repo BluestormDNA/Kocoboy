@@ -14,5 +14,7 @@ fun SideBarPreview() {
         onLoadRom = {},
         onPowerSwitch = {},
         onThemeChange = {},
+        haptics = true,
+        onHapticsChange = {},
     )
 }
