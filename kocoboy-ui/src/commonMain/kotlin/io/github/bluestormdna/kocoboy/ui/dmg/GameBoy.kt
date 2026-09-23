@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,8 +46,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -56,6 +60,7 @@ import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
@@ -297,6 +302,7 @@ fun GamePad(uiJoyPadEvent: (UiJoyPadEvent) -> Unit = {}, modifier: Modifier = Mo
 @Composable
 fun MainButtons(uiJoyPadEvent: (UiJoyPadEvent) -> Unit, modifier: Modifier = Modifier) {
     val buttonColor by animateColorAsState(targetValue = KocoBoyTheme.colors.mainButtons)
+    val haptics = LocalHapticFeedback.current
 
     Column(
         modifier
@@ -320,6 +326,7 @@ fun MainButtons(uiJoyPadEvent: (UiJoyPadEvent) -> Unit, modifier: Modifier = Mod
                 modifier = modifier
                     .weight(1f)
                     .detectInput(
+                        haptics = haptics,
                         onPress = { uiJoyPadEvent(KeyDown(JoypadInputs.B)) },
                         onRelease = { uiJoyPadEvent(KeyUp(JoypadInputs.B)) },
                     )
@@ -334,6 +341,7 @@ fun MainButtons(uiJoyPadEvent: (UiJoyPadEvent) -> Unit, modifier: Modifier = Mod
                 modifier = modifier
                     .weight(1f)
                     .detectInput(
+                        haptics = haptics,
                         onPress = { uiJoyPadEvent(KeyDown(JoypadInputs.A)) },
                         onRelease = { uiJoyPadEvent(KeyUp(JoypadInputs.A)) },
                     )
@@ -444,7 +452,7 @@ fun Pad(uiJoyPadEvent: (UiJoyPadEvent) -> Unit, modifier: Modifier = Modifier) {
         }
         // Actual PAD
         Box(
-            modifier.fillMaxSize(0.8f),
+            modifier.fillMaxSize(0.8f).detectPad(uiJoyPadEvent, LocalHapticFeedback.current),
         ) {
             Column(
                 modifier = Modifier
@@ -454,11 +462,7 @@ fun Pad(uiJoyPadEvent: (UiJoyPadEvent) -> Unit, modifier: Modifier = Modifier) {
                     .align(Alignment.TopCenter)
                     .wrapContentWidth()
                     .fillMaxWidth(0.8f)
-                    .wrapContentWidth()
-                    .detectInput(
-                        onPress = { uiJoyPadEvent(KeyDown(JoypadInputs.UP)) },
-                        onRelease = { uiJoyPadEvent(KeyUp(JoypadInputs.UP)) },
-                    ),
+                    .wrapContentWidth(),
             ) {
                 PadHorizontalGrip()
             }
@@ -470,11 +474,7 @@ fun Pad(uiJoyPadEvent: (UiJoyPadEvent) -> Unit, modifier: Modifier = Modifier) {
                     .align(Alignment.CenterEnd)
                     .wrapContentHeight()
                     .fillMaxHeight(0.8f)
-                    .wrapContentHeight()
-                    .detectInput(
-                        onPress = { uiJoyPadEvent(KeyDown(JoypadInputs.RIGHT)) },
-                        onRelease = { uiJoyPadEvent(KeyUp(JoypadInputs.RIGHT)) },
-                    ),
+                    .wrapContentHeight(),
             ) {
                 PadVerticalGrip()
             }
@@ -486,11 +486,7 @@ fun Pad(uiJoyPadEvent: (UiJoyPadEvent) -> Unit, modifier: Modifier = Modifier) {
                     .align(Alignment.BottomCenter)
                     .wrapContentWidth()
                     .fillMaxWidth(0.8f)
-                    .wrapContentWidth()
-                    .detectInput(
-                        onPress = { uiJoyPadEvent(KeyDown(JoypadInputs.DOWN)) },
-                        onRelease = { uiJoyPadEvent(KeyUp(JoypadInputs.DOWN)) },
-                    ),
+                    .wrapContentWidth(),
             ) {
                 PadHorizontalGrip()
             }
@@ -502,11 +498,7 @@ fun Pad(uiJoyPadEvent: (UiJoyPadEvent) -> Unit, modifier: Modifier = Modifier) {
                     .align(Alignment.CenterStart)
                     .wrapContentHeight()
                     .fillMaxHeight(0.8f)
-                    .wrapContentHeight()
-                    .detectInput(
-                        onPress = { uiJoyPadEvent(KeyDown(JoypadInputs.LEFT)) },
-                        onRelease = { uiJoyPadEvent(KeyUp(JoypadInputs.LEFT)) },
-                    ),
+                    .wrapContentHeight(),
             ) {
                 PadVerticalGrip()
             }
@@ -556,6 +548,7 @@ fun RowScope.PadVerticalGrip() {
 
 @Composable
 fun SelectStart(uiJoyPadEvent: (UiJoyPadEvent) -> Unit = {}, modifier: Modifier = Modifier) {
+    val haptics = LocalHapticFeedback.current
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -563,6 +556,7 @@ fun SelectStart(uiJoyPadEvent: (UiJoyPadEvent) -> Unit = {}, modifier: Modifier 
         RubberButton(
             text = "SELECT",
             modifier = Modifier.detectInput(
+                haptics = haptics,
                 onPress = { uiJoyPadEvent(KeyDown(JoypadInputs.SELECT)) },
                 onRelease = { uiJoyPadEvent(KeyUp(JoypadInputs.SELECT)) },
             ),
@@ -570,6 +564,7 @@ fun SelectStart(uiJoyPadEvent: (UiJoyPadEvent) -> Unit = {}, modifier: Modifier 
         RubberButton(
             text = "START",
             modifier = Modifier.detectInput(
+                haptics = haptics,
                 onPress = { uiJoyPadEvent(KeyDown(JoypadInputs.START)) },
                 onRelease = { uiJoyPadEvent(KeyUp(JoypadInputs.START)) },
             ),
@@ -953,15 +948,57 @@ value class KeyDown(val key: JoypadInputs) : UiJoyPadEvent
 @JvmInline
 value class KeyUp(val key: JoypadInputs) : UiJoyPadEvent
 
-fun Modifier.detectInput(onPress: () -> Unit, onRelease: () -> Unit) = this.pointerInput(Unit) {
-    detectTapGestures(
-        onPress = {
+private fun Modifier.detectPad(uiJoyPadEvent: (UiJoyPadEvent) -> Unit, haptics: HapticFeedback) =
+    this.pointerInput(haptics) {
+        val held = mutableSetOf<JoypadInputs>()
+        awaitEachGesture {
             try {
-                onPress()
-                awaitRelease()
+                do {
+                    val pointer = awaitPointerEvent().changes.first()
+                    for (key in PAD_KEYS) {
+                        val pressed = pointer.pressed && padPresses(key, pointer.position, size)
+                        if (pressed && held.add(key)) {
+                            uiJoyPadEvent(KeyDown(key))
+                            haptics.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                        }
+                        if (!pressed && held.remove(key)) uiJoyPadEvent(KeyUp(key))
+                    }
+                    pointer.consume()
+                } while (pointer.pressed)
             } finally {
-                onRelease()
+                held.forEach { uiJoyPadEvent(KeyUp(it)) }
+                held.clear()
             }
-        },
-    )
+        }
+    }
+
+private val PAD_KEYS =
+    arrayOf(JoypadInputs.UP, JoypadInputs.RIGHT, JoypadInputs.DOWN, JoypadInputs.LEFT)
+
+private fun padPresses(key: JoypadInputs, position: Offset, size: IntSize): Boolean {
+    val center = size.width * 0.15f
+    val x = position.x - size.width / 2f
+    val y = position.y - size.height / 2f
+    return when (key) {
+        JoypadInputs.UP -> y < -center
+        JoypadInputs.RIGHT -> x > center
+        JoypadInputs.DOWN -> y > center
+        JoypadInputs.LEFT -> x < -center
+        else -> false
+    }
 }
+
+fun Modifier.detectInput(haptics: HapticFeedback, onPress: () -> Unit, onRelease: () -> Unit) =
+    this.pointerInput(haptics) {
+        detectTapGestures(
+            onPress = {
+                try {
+                    onPress()
+                    haptics.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                    awaitRelease()
+                } finally {
+                    onRelease()
+                }
+            },
+        )
+    }

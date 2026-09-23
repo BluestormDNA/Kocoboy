@@ -21,6 +21,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,11 +31,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -59,6 +63,7 @@ fun App() {
     val vps by vm.vps.collectAsState()
     val poweredOn by vm.poweredOn.collectAsState()
     val cartridgeHeader by vm.cartridgeHeader.collectAsState()
+    val haptics by vm.haptics.collectAsState()
 
     val filePicker = rememberFilePickerLauncher { file ->
         file ?: return@rememberFilePickerLauncher
@@ -91,31 +96,36 @@ fun App() {
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    GameBoy(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxSize(0.9f)
-                            .wrapContentSize()
-                            .shadow(8.dp, UnitShape),
-                        uiJoyPadEvent = { uiJoyPadEvent ->
-                            when (uiJoyPadEvent) {
-                                is KeyDown -> vm.handlePress(uiJoyPadEvent.key)
-                                is KeyUp -> vm.handleRelease(uiJoyPadEvent.key)
-                            }
-                        },
-                        screen = {
-                            Canvas(modifier = Modifier.matchParentSize()) {
-                                drawImage(
-                                    image = frameBuffer,
-                                    dstSize = IntSize(size.width.toInt(), size.height.toInt()),
-                                    filterQuality = FilterQuality.Low,
-                                )
-                                drawRect(horizontalScreenShadow)
-                                drawRect(verticalScreenShadow)
-                            }
-                        },
-                        poweredOn = { poweredOn },
-                    )
+                    CompositionLocalProvider(
+                        LocalHapticFeedback provides
+                            if (haptics) LocalHapticFeedback.current else NoHaptics,
+                    ) {
+                        GameBoy(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxSize(0.9f)
+                                .wrapContentSize()
+                                .shadow(8.dp, UnitShape),
+                            uiJoyPadEvent = { uiJoyPadEvent ->
+                                when (uiJoyPadEvent) {
+                                    is KeyDown -> vm.handlePress(uiJoyPadEvent.key)
+                                    is KeyUp -> vm.handleRelease(uiJoyPadEvent.key)
+                                }
+                            },
+                            screen = {
+                                Canvas(modifier = Modifier.matchParentSize()) {
+                                    drawImage(
+                                        image = frameBuffer,
+                                        dstSize = IntSize(size.width.toInt(), size.height.toInt()),
+                                        filterQuality = FilterQuality.Low,
+                                    )
+                                    drawRect(horizontalScreenShadow)
+                                    drawRect(verticalScreenShadow)
+                                }
+                            },
+                            poweredOn = { poweredOn },
+                        )
+                    }
                     AnimatedVisibility(
                         visible = showSettings,
                         enter = fadeIn() + expandHorizontally(),
@@ -127,6 +137,8 @@ fun App() {
                             onLoadRom = filePicker::launch,
                             onPowerSwitch = vm::powerSwitch,
                             onThemeChange = vm::themeChange,
+                            haptics = haptics,
+                            onHapticsChange = vm::hapticsChange,
                         )
                     }
                 }
@@ -140,4 +152,8 @@ fun App() {
             }
         }
     }
+}
+
+private object NoHaptics : HapticFeedback {
+    override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) = Unit
 }
