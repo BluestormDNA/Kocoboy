@@ -7,12 +7,20 @@ import kotlin.test.Test
 import kotlin.test.fail
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 // Headless runner for Mooneye/Blargg test ROMs against the real Emulator (no mocks).
 private class HeadlessHost : Host {
     val output = ByteArrayOutputStream()
 
-    override fun render(frameBuffer: IntArray) {}
+    @Volatile var framesToScreen = 0
+
+    @Volatile var screen: IntArray? = null
+
+    // Copied on the emulator thread, so it is always a whole frame
+    override fun render(frameBuffer: IntArray) {
+        if (framesToScreen > 0 && --framesToScreen == 0) screen = frameBuffer.copyOf()
+    }
     override fun play(sampleBuffer: ByteArray) {}
     override fun serial(byte: Byte) = output.write(byte.toInt())
 }
@@ -54,7 +62,9 @@ private fun blarggMemoryResultFor(emulator: Emulator): RomResult {
     }
 }
 
-fun runRom(rom: ByteArray, timeoutMillis: Long = 3_000): RomResult = runBlocking {
+class RomRun(val result: RomResult, val screen: IntArray?)
+
+fun runRomWithScreen(rom: ByteArray, timeoutMillis: Long = 10_000): RomRun = runBlocking {
     val host = HeadlessHost()
     val emulator = Emulator(host)
     emulator.loadRom(rom)
@@ -72,9 +82,14 @@ fun runRom(rom: ByteArray, timeoutMillis: Long = 3_000): RomResult = runBlocking
             break
         }
     }
+    // ROMs report before they finish printing, so the screen is taken 30 frames later
+    host.framesToScreen = 30
+    withTimeoutOrNull(1_000) { while (host.screen == null) delay(5) }
     emulator.powerOff()
-    result
+    RomRun(result, host.screen)
 }
+
+fun runRom(rom: ByteArray): RomResult = runRomWithScreen(rom).result
 
 /** Runs every .gb ROM under [root] (recursively), logging "path -> RESULT" as it completes. */
 fun runRomsUnder(root: File): Map<String, RomResult> {
