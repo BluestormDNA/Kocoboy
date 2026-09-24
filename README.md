@@ -49,6 +49,11 @@ The full list goes as follows:
 > SRAM save files are not supported at the moment so your progress on games will be lost on exit.
 
 
+### Accuracy
+
+KocoBoy is checked against the Mooneye and Blargg test ROM suites and dmg-acid2.
+The [test status page](docs/TESTS.md) lists every result, with the screen each test ROM ends on.
+
 ## Using the emulator
 
 Run the App, Click the cog / settings icon to see the sidebar.  
