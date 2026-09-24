@@ -25,8 +25,9 @@ class ChannelWave {
     private var periodCycles: Int = 2
     private var counter: Int = 2
     private var wavePos: Int = 0
+    private var lastFetchClock = 0L
 
-    var wavePatternRAM = UByteArray(16)
+    private val wavePatternRAM = UByteArray(16)
     var sample: Byte = 0
 
     fun setNR30DacEnable(value: Byte) {
@@ -70,14 +71,44 @@ class ChannelWave {
     }
 
     private fun handleTrigger(nextStepClocksLength: Boolean) {
+        if (isEnabled && counter <= 2) corruptOnRetrigger()
         isEnabled = dacOn
         if (length == 0) {
             length = 256
             if (!nextStepClocksLength && lengthEnable) length--
         }
         reloadPeriod()
-        counter = periodCycles
+        // After a trigger the first fetch comes 6 dots later than a normal period
+        counter = periodCycles + 6
         wavePos = 0
+        // A fetch before the trigger is outside the window
+        lastFetchClock = lastClock - 2
+    }
+
+    // Retriggering within 2 dots of a fetch overwrites the start of wave RAM
+    private fun corruptOnRetrigger() {
+        val next = ((wavePos + 1) ushr 1) and 0xF
+        if (next < 4) {
+            wavePatternRAM[0] = wavePatternRAM[next]
+        } else {
+            wavePatternRAM.copyInto(wavePatternRAM, 0, next and 0xC, (next and 0xC) + 4)
+        }
+    }
+
+    // While the channel plays, the CPU only reaches wave RAM in the 2 dots after a fetch, and gets that byte
+    private fun justFetched(): Boolean = lastClock - lastFetchClock in 0..1
+
+    fun readRam(index: Int): Int = when {
+        !isEnabled -> wavePatternRAM[index].toInt()
+        justFetched() -> wavePatternRAM[wavePos ushr 1].toInt()
+        else -> 0xFF
+    }
+
+    fun writeRam(index: Int, value: UByte) {
+        when {
+            !isEnabled -> wavePatternRAM[index] = value
+            justFetched() -> wavePatternRAM[wavePos ushr 1] = value
+        }
     }
 
     // While powered off DMG still takes the length, but not the rest of the register
@@ -110,6 +141,7 @@ class ChannelWave {
             val steps = -counter / periodCycles + 1
             counter += steps * periodCycles
             wavePos = (wavePos + steps) and 0x1F
+            lastFetchClock = clock + counter - periodCycles
         }
         if (isEnabled) {
             val shift = if (wavePos and 1 == 0) 4 else 0

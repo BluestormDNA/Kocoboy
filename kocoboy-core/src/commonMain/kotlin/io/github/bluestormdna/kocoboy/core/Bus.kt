@@ -154,7 +154,7 @@ class Bus(
                 when (val ioAddress = addr and 0x7F) {
                     0x00 -> joypad.read().toInt() and 0xFF
                     0x01, 0x02 -> serial.read(ioAddress).toInt() and 0xFF
-                    // DIV, TIMA, STAT and LY follow the clock
+                    // DIV, TIMA, STAT, LY and wave RAM follow the clock
                     0x04, 0x05 -> {
                         sideEffect = true
                         timer.read(ioAddress).toInt() and 0xFF
@@ -162,6 +162,10 @@ class Bus(
                     0x41, 0x44 -> {
                         sideEffect = true
                         ppu.read(ioAddress).toInt() and 0xFF
+                    }
+                    in 0x30..0x3F -> {
+                        sideEffect = true
+                        apu.read(ioAddress).toInt() and 0xFF
                     }
                     in 0x03..0x07 -> timer.read(ioAddress).toInt() and 0xFF
                     in 0x10..0x3F -> apu.read(ioAddress).toInt() and 0xFF

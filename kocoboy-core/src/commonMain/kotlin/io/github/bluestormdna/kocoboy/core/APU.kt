@@ -203,7 +203,7 @@ class APU(private val host: Host, private val scheduler: Scheduler, private val 
         when (addr) {
             in 0x10..0x14 -> channel1.advanceTo(clock)
             in 0x16..0x19 -> channel2.advanceTo(clock)
-            in 0x1A..0x1E -> channel3.advanceTo(clock)
+            in 0x1A..0x1E, in 0x30..0x3F -> channel3.advanceTo(clock)
             in 0x20..0x23 -> channel4.advanceTo(clock)
         }
 
@@ -234,7 +234,7 @@ class APU(private val host: Host, private val scheduler: Scheduler, private val 
             0x25 -> setNR51Panning(value)
             0x26 -> setNR52MasterControl(value)
 
-            in 0x30..0x3F -> channel3.wavePatternRAM[addr and 0xF] = value.toUByte()
+            in 0x30..0x3F -> channel3.writeRam(addr and 0xF, value.toUByte())
         }
     }
 
@@ -265,7 +265,12 @@ class APU(private val host: Host, private val scheduler: Scheduler, private val 
         0x24 -> nr50
         0x25 -> nr51
         0x26 -> getNR52MasterControl()
-        in 0x30..0x3F -> channel3.wavePatternRAM[addr and 0xF].toByte()
+        in 0x30..0x3F -> {
+            // Like a write, the samples already due go out and the channel catches up first
+            renderSamples(clock)
+            channel3.advanceTo(clock)
+            channel3.readRam(addr and 0xF).toByte()
+        }
         // FF15, FF1F and FF27..FF2F are unmapped and read back as 0xFF
         else -> 0xFF.toByte()
     }
