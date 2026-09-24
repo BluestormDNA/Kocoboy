@@ -28,6 +28,11 @@ class Bus(
     private val io = ByteArray(0x80)
     private val hRam = ByteArray(0x80)
 
+    // OAM DMA copies its source when the transfer starts blocking OAM
+    private var dmaSource = 0
+    private var dmaBlockedFrom = 0L
+    private var dmaEnd = 0L
+
     fun orderSprites(line: Int, size: Int, orderBuffer: IntArray) {
         // First extract to buffer the Y visible sprites
         var orderBufferIndex = 0
@@ -142,7 +147,7 @@ class Bus(
             in 0xD000..0xDFFF -> wRam1[addr and 0xFFF].toInt() and 0xFF
             in 0xE000..0xEFFF -> wRam0[addr and 0xFFF].toInt() and 0xFF
             in 0xF000..0xFDFF -> wRam1[addr and 0xFFF].toInt() and 0xFF
-            in 0xFE00..0xFE9F -> oam[addr and 0xFF].toInt() and 0xFF
+            in 0xFE00..0xFE9F -> if (oamBlocked()) 0xFF else oam[addr and 0xFF].toInt() and 0xFF
             in 0xFEA0..0xFEFF -> 0x00 // Not usable
             in 0xFF00..0xFF7F -> {
                 dispatchDue()
@@ -187,7 +192,7 @@ class Bus(
             in 0xD000..0xDFFF -> wRam1[addr and 0xFFF] = value.toByte()
             in 0xE000..0xEFFF -> wRam0[addr and 0xFFF] = value.toByte()
             in 0xF000..0xFDFF -> wRam1[addr and 0xFFF] = value.toByte()
-            in 0xFE00..0xFE9F -> {
+            in 0xFE00..0xFE9F -> if (!oamBlocked()) {
                 ppu.drawDueLines(scheduler.clock, this)
                 oam[addr and 0xFF] = value.toByte()
             }
@@ -233,6 +238,7 @@ class Bus(
                 Event.TIMER_RELOAD -> timer.onReload(this)
                 Event.APU_SEQUENCER -> apu.onFrameSequencer()
                 Event.SERIAL -> serial.onTransferComplete(this)
+                Event.OAM_DMA -> copyDma()
             }
         }
     }
@@ -241,14 +247,26 @@ class Bus(
 
     fun readVRAM(addr: Int): Int = vRam[addr and 0x1FFF].toInt() and 0xFF
 
-    fun handleDma(value: Byte): Int {
+    fun handleDma(value: Byte) {
+        val clock = scheduler.clock
+        // One setup M-cycle, a running transfer keeps OAM blocked through it
+        if (clock + 4 >= dmaEnd) dmaBlockedFrom = clock + 8
+        dmaEnd = clock + 8 + DMA_CYCLES
         val source = (value.toInt() and 0xFF) shl 8
         // Work Ram ignores bit 13
-        val addr = if (source >= 0xE000) source and 0xDFFF else source
+        dmaSource = if (source >= 0xE000) source and 0xDFFF else source
+        scheduler.scheduleAt(Event.OAM_DMA, clock + 8)
+    }
+
+    private fun oamBlocked(): Boolean {
+        val clock = scheduler.clock
+        return clock >= dmaBlockedFrom && clock < dmaEnd
+    }
+
+    private fun copyDma() {
         for (i in oam.indices) {
-            oam[i] = readByte(addr + i).toByte()
+            oam[i] = readByte(dmaSource + i).toByte()
         }
-        return 0
     }
 
     fun clearInterrupt(b: Int) {
@@ -264,6 +282,9 @@ class Bus(
     fun reset() {
         serial.reset()
         sideEffect = false
+        dmaSource = 0
+        dmaBlockedFrom = 0
+        dmaEnd = 0
         cleanUp()
         initializeRegisters()
     }
@@ -275,5 +296,9 @@ class Bus(
         oam.fill(0)
         io.fill(0)
         hRam.fill(0)
+    }
+
+    companion object {
+        private const val DMA_CYCLES = 640
     }
 }
