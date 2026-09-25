@@ -9,6 +9,9 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
     private var windowTriggeredThisFrame = false
     private val frameBuffer = IntArray(160 * 144)
 
+    val vRam = ByteArray(0x2000)
+    val oam = ByteArray(0xA0)
+
     // per scanline BG colour ids, sprite priority is decided on the id not the shade
     private val bgColorZero = BooleanArray(160)
 
@@ -98,7 +101,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         when (ioAddress) {
             0x40 -> {
                 if (value == lcdc) return
-                drawDueLines(scheduler.clock, bus)
+                drawDueLines(scheduler.clock)
                 val wasEnabled = isBit(7, lcdc)
                 val lineBefore = statLineAt(scheduler.clock)
                 if (wasEnabled) lycWhileOff = statusAt(scheduler.clock) and 0x4
@@ -127,11 +130,11 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
                 if (isEnabled) scheduleNext(scheduler.clock)
             }
             0x42 -> {
-                drawDueLines(scheduler.clock, bus)
+                drawDueLines(scheduler.clock)
                 scy = value
             }
             0x43 -> {
-                drawDueLines(scheduler.clock, bus)
+                drawDueLines(scheduler.clock)
                 scx = value
             }
             0x44 -> Unit // LY is read only
@@ -142,35 +145,35 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
                 if (isEnabled) scheduleNext(scheduler.clock)
             }
             0x46 -> {
-                drawDueLines(scheduler.clock, bus)
+                drawDueLines(scheduler.clock)
                 dma = value
                 bus.handleDma(value) // todo internalize
             }
             0x47 -> {
                 if (value == bgp) return
-                drawDueLines(scheduler.clock, bus)
+                drawDueLines(scheduler.clock)
                 bgp = value
                 // (palette shr colorId * 2) and 0x3
                 cachePalette(backgroundPalette, color, value)
             }
             0x48 -> {
                 if (value == obp0) return
-                drawDueLines(scheduler.clock, bus)
+                drawDueLines(scheduler.clock)
                 obp0 = value
                 cachePalette(objectPalette0, color, value)
             }
             0x49 -> {
                 if (value == obp1) return
-                drawDueLines(scheduler.clock, bus)
+                drawDueLines(scheduler.clock)
                 obp1 = value
                 cachePalette(objectPalette1, color, value)
             }
             0x4A -> {
-                drawDueLines(scheduler.clock, bus)
+                drawDueLines(scheduler.clock)
                 wy = value
             }
             0x4B -> {
-                drawDueLines(scheduler.clock, bus)
+                drawDueLines(scheduler.clock)
                 wx = value
             }
         }
@@ -197,7 +200,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         val dot = position % SCANLINE_CYCLES
 
         if (line == SCREEN_HEIGHT && dot == 0) {
-            drawDueLines(at, bus)
+            drawDueLines(at)
             windowInternalLine = 0
             windowTriggeredThisFrame = false
             host.render(frameBuffer)
@@ -240,7 +243,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         return frame + line * SCANLINE_CYCLES + dot
     }
 
-    fun drawDueLines(time: Long, bus: Bus) {
+    fun drawDueLines(time: Long) {
         if (!isEnabled) return
         if (renderedLines == SCREEN_HEIGHT && time < renderFrame + FRAME_CYCLES) return
         val frame = frameOf(time)
@@ -251,19 +254,19 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         val ended = ((time - frame).toInt() + SCANLINE_CYCLES - HBLANK_DOT) / SCANLINE_CYCLES
         val due = minOf(SCREEN_HEIGHT, ended)
         while (renderedLines < due) {
-            drawScanLine(renderedLines, bus)
+            drawScanLine(renderedLines)
             renderedLines++
         }
     }
 
-    private fun drawScanLine(line: Int, bus: Bus) {
+    private fun drawScanLine(line: Int) {
         if (isBit(0, lcdc)) { // Bit 0 - BG Display (0=Off, 1=On)
-            renderBG(line, bus)
+            renderBG(line)
         } else {
             blankScanLine(line)
         }
         if (isBit(1, lcdc)) { // Bit 1 - OBJ (Sprite) Display Enable
-            renderSpritesBuffer(line, bus)
+            renderSpritesBuffer(line)
         }
     }
 
@@ -275,7 +278,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         }
     }
 
-    private fun renderBG(line: Int, bus: Bus) {
+    private fun renderBG(line: Int) {
         val WX = (wx.toInt() and 0xFF) - 7 // WX needs -7 Offset
         val WY = wy.toInt() and 0xFF
         val SCY = scy.toInt() and 0xFF
@@ -303,14 +306,14 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
                 val tileAddress = tileMap + tileRow + tileCol
 
                 val tileLoc = if (isSignedAddress(lcdc)) {
-                    getTileDataAddress(lcdc) + bus.readVRAM(tileAddress) * 16
+                    getTileDataAddress(lcdc) + readVRAM(tileAddress) * 16
                 } else {
                     // Signed
-                    getTileDataAddress(lcdc) + (bus.readVRAM(tileAddress).toByte() + 128) * 16
+                    getTileDataAddress(lcdc) + (readVRAM(tileAddress).toByte() + 128) * 16
                 }
 
-                lo = bus.readVRAM((tileLoc + tileLine)).toByte()
-                hi = bus.readVRAM((tileLoc + tileLine + 1)).toByte()
+                lo = readVRAM((tileLoc + tileLine)).toByte()
+                hi = readVRAM((tileLoc + tileLine + 1)).toByte()
             }
 
             val colorBit = 7 - (x and 7) // reversed
@@ -328,25 +331,66 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
 
     private val orderBuffer = IntArray(40 + 1) // Oam Indexes plus terminator
 
-    private fun renderSpritesBuffer(line: Int, bus: Bus) {
+    private fun orderSprites(line: Int, size: Int, orderBuffer: IntArray) {
+        var orderBufferIndex = 0
+        for (i in 0..oam.lastIndex step 4) {
+            val y = (oam[i].toInt() and 0xFF) - 16
+            val visible = (line >= y) && (line < (y + size))
+            if (visible) {
+                orderBuffer[orderBufferIndex++] = i
+            }
+        }
+
+        orderBuffer[orderBufferIndex] = -1
+
+        if (orderBufferIndex <= 1) return
+
+        insertionSortOamOrderBuffer(indexes = orderBuffer, lastIndexExclusive = orderBufferIndex)
+
+        // Only 10 sprites per scanline
+        orderBuffer[10] = -1
+
+        orderBufferIndex = if (orderBufferIndex >= 10) 10 else orderBufferIndex
+        orderBuffer.reverse(0, orderBufferIndex)
+    }
+
+    private fun insertionSortOamOrderBuffer(indexes: IntArray, lastIndexExclusive: Int) {
+        for (i in 1..<lastIndexExclusive) {
+            val keyIndex = indexes[i]
+            val keyValue = oam[keyIndex + 1].toInt() and 0xFF
+            var j = i - 1
+
+            while (j >= 0 && oam[indexes[j] + 1].toInt() and 0xFF > keyValue) {
+                indexes[j + 1] = indexes[j]
+                j--
+            }
+            indexes[j + 1] = keyIndex
+        }
+    }
+
+    private fun readOAM(addr: Int): Int = oam[addr].toInt() and 0xFF
+
+    private fun readVRAM(addr: Int): Int = vRam[addr and 0x1FFF].toInt() and 0xFF
+
+    private fun renderSpritesBuffer(line: Int) {
         val spriteSize = spriteSize(lcdc)
 
         // 0x9F OAM Size, 40 Sprites x 4 bytes filtering:
         // Out of y range and ordered by x limited to 10
-        bus.orderSprites(line, spriteSize, orderBuffer)
+        orderSprites(line, spriteSize, orderBuffer)
 
         var orderBufferPointer = 0
         while (orderBuffer[orderBufferPointer] != -1) {
             val index = orderBuffer[orderBufferPointer]
-            val x = bus.readOAM(index + 1) - 8 // Byte1 - X Position //needs 8 offset
+            val x = readOAM(index + 1) - 8 // Byte1 - X Position //needs 8 offset
             // Out of range X values are not drawn but will consume
             // sprite object slots towards the 10 limit (hence not filtering them on the mmu)
             orderBufferPointer++
             if (x <= -8 || x >= 160) continue
 
-            val y = bus.readOAM(index) - 16 // Byte0 - Y Position //needs 16 offset
-            val tile = bus.readOAM(index + 2) // Byte2 - Tile/Pattern Number
-            val attr = bus.readOAM(index + 3).toByte() // Byte3 - Attributes/Flags
+            val y = readOAM(index) - 16 // Byte0 - Y Position //needs 16 offset
+            val tile = readOAM(index + 2) // Byte2 - Tile/Pattern Number
+            val attr = readOAM(index + 3).toByte() // Byte3 - Attributes/Flags
             val tileIndex = tile and (spriteSize shr 4).inv()
 
             // Bit4   Palette number  **Non CGB Mode Only** (0=OBP0, 1=OBP1)
@@ -362,8 +406,8 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
             }
 
             val tileAddress = ((0x8000 + (tileIndex * 16) + (tileRow * 2)))
-            val lo = bus.readVRAM(tileAddress)
-            val hi = bus.readVRAM(tileAddress + 1)
+            val lo = readVRAM(tileAddress)
+            val hi = readVRAM(tileAddress + 1)
 
             for (p in 0..7) {
                 if ((x + p) >= 0 && (x + p) < SCREEN_WIDTH) {
@@ -458,6 +502,8 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         objectPalette0.fill(0)
         objectPalette1.fill(0)
         bgColorZero.fill(false)
+        vRam.fill(0)
+        oam.fill(0)
         frameBuffer.fill(color[0])
         host.render(frameBuffer)
     }
