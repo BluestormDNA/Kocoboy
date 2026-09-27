@@ -97,13 +97,21 @@ class Bus(
             // }
             in 0x0000..0x3FFF -> cartridge.readLoROM(address).toInt() and 0xFF
             in 0x4000..0x7FFF -> cartridge.readHiROM(address).toInt() and 0xFF
-            in 0x8000..0x9FFF -> ppu.vRam[addr and 0x1FFF].toInt() and 0xFF
+            in 0x8000..0x9FFF -> if (ppu.vramReadBlocked()) {
+                0xFF
+            } else {
+                ppu.vRam[addr and 0x1FFF].toInt() and 0xFF
+            }
             in 0xA000..0xBFFF -> cartridge.readERAM(address).toInt() and 0xFF
             in 0xC000..0xCFFF -> wRam0[addr and 0xFFF].toInt() and 0xFF
             in 0xD000..0xDFFF -> wRam1[addr and 0xFFF].toInt() and 0xFF
             in 0xE000..0xEFFF -> wRam0[addr and 0xFFF].toInt() and 0xFF
             in 0xF000..0xFDFF -> wRam1[addr and 0xFFF].toInt() and 0xFF
-            in 0xFE00..0xFE9F -> if (oamBlocked()) 0xFF else ppu.oam[addr and 0xFF].toInt() and 0xFF
+            in 0xFE00..0xFE9F -> if (oamBlocked() || ppu.oamReadBlocked()) {
+                0xFF
+            } else {
+                ppu.oam[addr and 0xFF].toInt() and 0xFF
+            }
             in 0xFEA0..0xFEFF -> 0x00 // Not usable
             in 0xFF00..0xFF7F -> {
                 dispatchDue()
@@ -143,7 +151,7 @@ class Bus(
         sideEffect = true
         when (addr) {
             in 0x0000..0x7FFF -> cartridge.writeROM(address, byte)
-            in 0x8000..0x9FFF -> {
+            in 0x8000..0x9FFF -> if (!ppu.vramWriteBlocked()) {
                 ppu.drawDueLines(scheduler.clock)
                 ppu.vRam[addr and 0x1FFF] = value.toByte()
             }
@@ -152,7 +160,7 @@ class Bus(
             in 0xD000..0xDFFF -> wRam1[addr and 0xFFF] = value.toByte()
             in 0xE000..0xEFFF -> wRam0[addr and 0xFFF] = value.toByte()
             in 0xF000..0xFDFF -> wRam1[addr and 0xFFF] = value.toByte()
-            in 0xFE00..0xFE9F -> if (!oamBlocked()) {
+            in 0xFE00..0xFE9F -> if (!oamBlocked() && !ppu.oamWriteBlocked()) {
                 ppu.drawDueLines(scheduler.clock)
                 ppu.oam[addr and 0xFF] = value.toByte()
             }

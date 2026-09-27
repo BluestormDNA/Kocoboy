@@ -39,6 +39,10 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
     private var renderFrame: Long = 0
     private var renderedLines = 0
 
+    // Where mode 3 ends on the latest line that reached it
+    private var latchedLine = Long.MIN_VALUE
+    private var latchedHblankDot = HBLANK_DOT
+
     // Cached palettes
     private val backgroundPalette = IntArray(4)
     private val objectPalette0 = IntArray(4)
@@ -62,7 +66,8 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
 
     private fun positionAt(time: Long): Int = ((time - lcdOnAt) % FRAME_CYCLES).toInt()
 
-    private fun ly(): Int = if (isEnabled) positionAt(scheduler.clock) / SCANLINE_CYCLES else 0
+    // LY moves on to the next line in the last 4 dots of the current one
+    private fun ly(): Int = if (isEnabled) positionAt(scheduler.clock + 4) / SCANLINE_CYCLES else 0
 
     // bit 7 is not wired and reads as 1
     private fun readStat(): Byte = (0x80 or stat.toInt() or statusAt(scheduler.clock)).toByte()
@@ -73,13 +78,14 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         val position = positionAt(time)
         val line = position / SCANLINE_CYCLES
         val dot = position % SCANLINE_CYCLES
-        val coincidenceBit = if (line == lyc.toInt() and 0xFF) 0x4 else 0
+        // The LY=LYC bit drops while LY already shows the next line
+        val coincidenceBit = if (line == lyc.toInt() and 0xFF && dot < LINE_END_DOT) 0x4 else 0
         val mode = when {
             // the first line after the LCD turns on skips the OAM scan
             time - lcdOnAt < OAM_CYCLES -> 0
             line >= SCREEN_HEIGHT -> 1
             dot < OAM_CYCLES -> 2
-            dot < HBLANK_DOT -> 3
+            dot < hblankDot(time - dot, line) -> 3
             else -> 0
         }
         return coincidenceBit or mode
@@ -90,11 +96,103 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         val status = statusAt(time)
         val mode = status and 0x3
         // enables 3 to 5 are modes 0 to 2, mode 3 has none
-        return (mode != 3 && isBit(3 + mode, stat)) || (status and 0x4 != 0 && isBit(6, stat))
+        return (mode != 3 && isBit(3 + mode, stat)) || (status and 0x4 != 0 && isBit(6, stat)) ||
+            // DMG raises the mode 2 source once more as line 144 starts
+            (isEnabled && isBit(5, stat) && positionAt(time) - VBLANK_START in 0..<4)
     }
 
     private fun requestOnRise(before: Boolean, time: Long, bus: Bus) {
         if (!before && statLineAt(time)) bus.requestInterrupt(LCD_INTERRUPT)
+    }
+
+    // Reads lose VRAM one M-cycle before mode 3, except on the line the LCD turns on
+    fun vramReadBlocked(): Boolean {
+        if (!isEnabled) return false
+        val time = scheduler.clock
+        val position = positionAt(time)
+        val line = position / SCANLINE_CYCLES
+        val dot = position % SCANLINE_CYCLES
+        val from = if (time - dot == lcdOnAt) OAM_CYCLES else OAM_CYCLES - 4
+        if (line >= SCREEN_HEIGHT || dot < from) return false
+        return dot < OAM_CYCLES || dot < hblankDot(time - dot, line)
+    }
+
+    fun vramWriteBlocked(): Boolean {
+        if (!isEnabled) return false
+        val time = scheduler.clock
+        val position = positionAt(time)
+        val line = position / SCANLINE_CYCLES
+        val dot = position % SCANLINE_CYCLES
+        return line < SCREEN_HEIGHT && dot >= OAM_CYCLES && dot < hblankDot(time - dot, line)
+    }
+
+    // Reads lose OAM as LY moves to a visible line, writes only once its OAM scan starts
+    fun oamReadBlocked(): Boolean {
+        if (!isEnabled) return false
+        val time = scheduler.clock
+        val position = positionAt(time)
+        val line = position / SCANLINE_CYCLES
+        val dot = position % SCANLINE_CYCLES
+        if (dot >= LINE_END_DOT) return line < SCREEN_HEIGHT - 1 || line == LAST_LINE
+        if (line >= SCREEN_HEIGHT || time - lcdOnAt < OAM_CYCLES) return false
+        return dot < OAM_CYCLES || dot < hblankDot(time - dot, line)
+    }
+
+    // Writes still reach OAM in the last M-cycle of the OAM scan
+    fun oamWriteBlocked(): Boolean {
+        if (!isEnabled) return false
+        val time = scheduler.clock
+        val position = positionAt(time)
+        val line = position / SCANLINE_CYCLES
+        val dot = position % SCANLINE_CYCLES
+        if (line >= SCREEN_HEIGHT || time - lcdOnAt < OAM_CYCLES) return false
+        if (dot < OAM_CYCLES) return dot < OAM_CYCLES - 4
+        return dot < hblankDot(time - dot, line)
+    }
+
+    // Mode 3 is latched from the line's own state the first time it is asked for
+    private fun hblankDot(lineStart: Long, line: Int): Int {
+        if (lineStart != latchedLine) {
+            latchedLine = lineStart
+            latchedHblankDot = HBLANK_DOT + mode3Penalty(line)
+        }
+        return latchedHblankDot
+    }
+
+    // Fine scroll, the window and every object fetched lengthen mode 3 (Pan Docs' OBJ penalty)
+    private fun mode3Penalty(line: Int): Int {
+        val scrollX = scx.toInt() and 0xFF
+        val windowX = (wx.toInt() and 0xFF) - 7
+        val window = isBit(5, lcdc) && line >= (wy.toInt() and 0xFF) && windowX < SCREEN_WIDTH
+        var penalty = (scrollX and 7) + if (window) 6 else 0
+        if (!isBit(1, lcdc)) return penalty
+        val count = orderSprites(line, spriteSize(lcdc), orderBuffer)
+        var backgroundTiles = 0L
+        var windowTiles = 0L
+        var objects = 0
+        for (i in 0..<count) {
+            val x = readOAM(orderBuffer[i] + 1)
+            if (x < SCREEN_WIDTH + 8) {
+                val pixel = x - 8
+                val inWindow = window && pixel >= windowX
+                val column = if (inWindow) pixel - windowX else x + scrollX
+                val tile = 1L shl (column ushr 3)
+                val fetched = if (inWindow) windowTiles else backgroundTiles
+                if (fetched and tile == 0L) {
+                    // Waiting for the tile's fetch to finish, an object at X 0 always waits 5
+                    penalty += if (x == 0) 5 else maxOf(0, 5 - (column and 7))
+                    if (inWindow) {
+                        windowTiles = windowTiles or tile
+                    } else {
+                        backgroundTiles = backgroundTiles or tile
+                    }
+                }
+                penalty += 6
+                objects++
+            }
+        }
+        // Measured on DMG (mooneye intr_2_mode0_timing_sprites): fetched objects end mode 3 three dots early
+        return if (objects > 0) penalty - 3 else penalty
     }
 
     fun write(ioAddress: Int, value: Byte, bus: Bus) {
@@ -214,7 +312,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
     private fun scheduleNext(after: Long) {
         val frame = frameOf(after)
         var next = nextInFrame(frame, VBLANK_START, after)
-        if (isBit(3, stat)) next = minOf(next, nextVisibleLine(frame, HBLANK_DOT, after))
+        if (isBit(3, stat)) next = minOf(next, nextHblank(frame, after))
         if (isBit(5, stat)) next = minOf(next, nextVisibleLine(frame, 0, after))
         val compare = lyc.toInt() and 0xFF
         if (isBit(6, stat) && compare <= LAST_LINE) {
@@ -233,6 +331,18 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
     private fun nextInFrame(frame: Long, offset: Int, after: Long): Long {
         val at = frame + offset
         return if (at > after) at else at + FRAME_CYCLES
+    }
+
+    // A line's hblank is only known once its mode 3 starts, so wake there first
+    private fun nextHblank(frame: Long, after: Long): Long {
+        val position = (after - frame).toInt()
+        val line = position / SCANLINE_CYCLES
+        if (line < SCREEN_HEIGHT && position % SCANLINE_CYCLES >= OAM_CYCLES) {
+            val lineStart = frame + line * SCANLINE_CYCLES
+            val hblank = lineStart + hblankDot(lineStart, line)
+            if (hblank > after) return hblank
+        }
+        return nextVisibleLine(frame, OAM_CYCLES, after)
     }
 
     private fun nextVisibleLine(frame: Long, dot: Int, after: Long): Long {
@@ -329,29 +439,22 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         }
     }
 
-    private val orderBuffer = IntArray(40 + 1) // Oam Indexes plus terminator
+    private val orderBuffer = IntArray(MAX_LINE_OBJECTS) // Oam Indexes
 
-    private fun orderSprites(line: Int, size: Int, orderBuffer: IntArray) {
-        var orderBufferIndex = 0
+    // The line shows the first 10 sprites in OAM order that cover it, returned ordered by X
+    private fun orderSprites(line: Int, size: Int, orderBuffer: IntArray): Int {
+        var count = 0
         for (i in 0..oam.lastIndex step 4) {
             val y = (oam[i].toInt() and 0xFF) - 16
             val visible = (line >= y) && (line < (y + size))
             if (visible) {
-                orderBuffer[orderBufferIndex++] = i
+                orderBuffer[count++] = i
+                if (count == MAX_LINE_OBJECTS) break
             }
         }
 
-        orderBuffer[orderBufferIndex] = -1
-
-        if (orderBufferIndex <= 1) return
-
-        insertionSortOamOrderBuffer(indexes = orderBuffer, lastIndexExclusive = orderBufferIndex)
-
-        // Only 10 sprites per scanline
-        orderBuffer[10] = -1
-
-        orderBufferIndex = if (orderBufferIndex >= 10) 10 else orderBufferIndex
-        orderBuffer.reverse(0, orderBufferIndex)
+        insertionSortOamOrderBuffer(indexes = orderBuffer, lastIndexExclusive = count)
+        return count
     }
 
     private fun insertionSortOamOrderBuffer(indexes: IntArray, lastIndexExclusive: Int) {
@@ -377,15 +480,14 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
 
         // 0x9F OAM Size, 40 Sprites x 4 bytes filtering:
         // Out of y range and ordered by x limited to 10
-        orderSprites(line, spriteSize, orderBuffer)
+        var orderBufferPointer = orderSprites(line, spriteSize, orderBuffer)
 
-        var orderBufferPointer = 0
-        while (orderBuffer[orderBufferPointer] != -1) {
+        // Highest X first, so the lowest X is drawn last and wins
+        while (--orderBufferPointer >= 0) {
             val index = orderBuffer[orderBufferPointer]
             val x = readOAM(index + 1) - 8 // Byte1 - X Position //needs 8 offset
             // Out of range X values are not drawn but will consume
             // sprite object slots towards the 10 limit (hence not filtering them on the mmu)
-            orderBufferPointer++
             if (x <= -8 || x >= 160) continue
 
             val y = readOAM(index) - 16 // Byte0 - Y Position //needs 16 offset
@@ -496,6 +598,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         lcdOnAt = 0
         renderFrame = 0
         renderedLines = 0
+        latchedLine = Long.MIN_VALUE
         windowInternalLine = 0
         windowTriggeredThisFrame = false
         backgroundPalette.fill(0)
@@ -529,6 +632,8 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         private const val VRAM_CYCLES = 172
         private const val HBLANK_DOT = OAM_CYCLES + VRAM_CYCLES
         private const val SCANLINE_CYCLES = 456
+        private const val LINE_END_DOT = SCANLINE_CYCLES - 4
+        private const val MAX_LINE_OBJECTS = 10
         private const val VBLANK_START = SCREEN_HEIGHT * SCANLINE_CYCLES
         private const val FRAME_CYCLES = SCANLINE_CYCLES * (LAST_LINE + 1)
 
