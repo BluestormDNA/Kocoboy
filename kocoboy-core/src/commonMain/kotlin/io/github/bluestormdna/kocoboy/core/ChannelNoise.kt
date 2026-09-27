@@ -42,7 +42,7 @@ class ChannelNoise {
 
     fun setNRx2EnvelopeVolume(value: Byte) {
         nr42 = value
-        envelopeInitialVolume = value.toInt() ushr 4
+        envelopeInitialVolume = (value.toInt() ushr 4) and 0xF
         envelopeDirection = (value.toInt() ushr 3) and 0x1
         envelopeSweep = value.toInt() and 0x7
         dacOn = (value.toInt() and 0xF8) != 0
@@ -51,7 +51,7 @@ class ChannelNoise {
 
     fun setNR43Frequency(value: Byte) {
         nr43 = value
-        clockShift = (value.toInt() shr 4) and 0xFF
+        clockShift = (value.toInt() ushr 4) and 0xF
         lfsrWidth = (value.toInt() shr 3) and 0x1
         clockDivider = value.toInt() and 0x7
 
@@ -121,6 +121,7 @@ class ChannelNoise {
     fun advanceTo(clock: Long) {
         counter -= (clock - lastClock).toInt()
         lastClock = clock
+        if (clockShift >= 14) counter = period
         var guard = MAX_CATCH_UP
         while (counter <= 0 && guard-- > 0) {
             counter += period

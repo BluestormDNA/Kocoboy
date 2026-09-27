@@ -66,7 +66,7 @@ class ChannelPulse {
 
     fun setNRx2EnvelopeVolume(value: Byte) {
         nrx2 = value
-        envelopeInitialVolume = value.toInt() ushr 4
+        envelopeInitialVolume = (value.toInt() ushr 4) and 0xF
         envelopeDirection = (value.toInt() ushr 3) and 0x1
         envelopeSweep = value.toInt() and 0x7
         dacOn = (value.toInt() and 0xF8) != 0
