@@ -107,12 +107,7 @@ class Bus(
             in 0xD000..0xDFFF -> wRam1[addr and 0xFFF].toInt() and 0xFF
             in 0xE000..0xEFFF -> wRam0[addr and 0xFFF].toInt() and 0xFF
             in 0xF000..0xFDFF -> wRam1[addr and 0xFFF].toInt() and 0xFF
-            in 0xFE00..0xFE9F -> if (oamBlocked() || ppu.oamReadBlocked()) {
-                0xFF
-            } else {
-                ppu.oam[addr and 0xFF].toInt() and 0xFF
-            }
-            in 0xFEA0..0xFEFF -> 0x00 // Not usable
+            in 0xFE00..0xFEFF -> readOam(addr)
             in 0xFF00..0xFF7F -> {
                 dispatchDue()
                 when (val ioAddress = addr and 0x7F) {
@@ -160,11 +155,7 @@ class Bus(
             in 0xD000..0xDFFF -> wRam1[addr and 0xFFF] = value.toByte()
             in 0xE000..0xEFFF -> wRam0[addr and 0xFFF] = value.toByte()
             in 0xF000..0xFDFF -> wRam1[addr and 0xFFF] = value.toByte()
-            in 0xFE00..0xFE9F -> if (!oamBlocked() && !ppu.oamWriteBlocked()) {
-                ppu.drawDueLines(scheduler.clock)
-                ppu.oam[addr and 0xFF] = value.toByte()
-            }
-            in 0xFEA0..0xFEFF -> Unit // Not usable
+            in 0xFE00..0xFEFF -> writeOam(addr, value)
             in 0xFF00..0xFF7F -> { // IO
                 dispatchDue()
                 when (val ioAddress = addr and 0x7F) {
@@ -194,6 +185,23 @@ class Bus(
             else -> throw IllegalStateException(
                 "Attempting to write ${byte.toHexString()} to ${addr.toHexString()}",
             )
+        }
+    }
+
+    private fun readOam(addr: Int): Int {
+        ppu.corruptOamRead()
+        return when {
+            addr >= 0xFEA0 -> 0x00 // Not usable
+            oamBlocked() || ppu.oamReadBlocked() -> 0xFF
+            else -> ppu.oam[addr and 0xFF].toInt() and 0xFF
+        }
+    }
+
+    private fun writeOam(addr: Int, value: Int) {
+        ppu.corruptOamWrite()
+        if (addr < 0xFEA0 && !oamBlocked() && !ppu.oamWriteBlocked()) {
+            ppu.drawDueLines(scheduler.clock)
+            ppu.oam[addr and 0xFF] = value.toByte()
         }
     }
 
@@ -233,6 +241,10 @@ class Bus(
             oam[i] = readByte(dmaSource + i).toByte()
         }
     }
+
+    fun corruptOamWrite() = ppu.corruptOamWrite()
+
+    fun corruptOamIncrease() = ppu.corruptOamIncrease()
 
     fun clearInterrupt(b: Int) {
         val interruptFlags = io[0x0F]

@@ -14,6 +14,8 @@ class TestStatusPage {
 
     private val docs = File("../docs")
 
+    private val overrunsItsLog = "blargg/oam_bug/rom_singles/7-timing_effect.gb"
+
     private class Row(val path: String, val result: RomResult, val screen: String?) {
         val name = path.substringAfterLast('/').removeSuffix(".gb")
         val folder = path.substringBeforeLast('/')
@@ -36,8 +38,11 @@ class TestStatusPage {
         if (System.getenv("KOCOBOY_TEST_PAGE") == null) return
         val rows = listOf("mooneye", "blargg").flatMap { suite ->
             val root = resource("roms/$suite")
-            root.walkTopDown().filter { it.extension == "gb" }.sortedBy { it.path }.map { file ->
+            root.walkTopDown().filter {
+                it.extension == "gb"
+            }.sortedBy { it.path }.mapNotNull { file ->
                 val path = "$suite/${file.relativeTo(root).path}"
+                if (path == overrunsItsLog) return@mapNotNull null
                 val run = runRomWithScreen(file.readBytes())
                 Row(path, run.result, run.screen?.let { save(it, path) })
             }.toList()
@@ -75,7 +80,7 @@ class TestStatusPage {
             >KOCOBOY_TEST_PAGE=1 ./gradlew :kocoboy-core:jvmTest --tests '*TestStatusPage*' --rerun
             >```
             >
-            >Kocoboy emulates the original Game Boy (DMG). It passes **$passedDmg of ${dmg.size}** DMG test ROMs, $otherHardware more check other models and are expected to fail.
+            >Kocoboy emulates the original Game Boy (DMG). It passes **$passedDmg of ${dmg.size}** DMG test ROMs, $otherHardware more check other models and are expected to fail. `oam_bug/rom_singles/7-timing_effect` is left out: its log overruns the cart RAM into its own code, so it restarts forever, also on hardware. The combined `oam_bug` runs the same test as 07.
             >
             >## dmg-acid2
             >
