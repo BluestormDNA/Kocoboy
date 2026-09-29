@@ -100,7 +100,7 @@ class Bus(
             in 0x8000..0x9FFF -> if (ppu.vramReadBlocked()) {
                 0xFF
             } else {
-                ppu.vRam[addr and 0x1FFF].toInt() and 0xFF
+                ppu.readVram(addr and 0x1FFF).toInt() and 0xFF
             }
             in 0xA000..0xBFFF -> cartridge.readERAM(address).toInt() and 0xFF
             in 0xC000..0xCFFF -> wRam0[addr and 0xFFF].toInt() and 0xFF
@@ -153,7 +153,7 @@ class Bus(
             in 0x0000..0x7FFF -> cartridge.writeROM(address, byte)
             in 0x8000..0x9FFF -> if (!ppu.vramWriteBlocked()) {
                 ppu.drawDueLines(scheduler.clock)
-                ppu.vRam[addr and 0x1FFF] = value.toByte()
+                ppu.writeVram(addr and 0x1FFF, value.toByte())
             }
             in 0xA000..0xBFFF -> cartridge.writeERAM(address, byte)
             in 0xC000..0xCFFF -> wRam0[addr and 0xFFF] = value.toByte()
