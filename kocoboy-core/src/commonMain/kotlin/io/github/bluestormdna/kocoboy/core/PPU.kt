@@ -171,6 +171,50 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         return dot < hblankDot(time - dot, line)
     }
 
+    private fun scannedOamRow(): Int {
+        if (!isEnabled) return -1
+        val time = scheduler.clock + 4
+        if (time - lcdOnAt < OAM_CYCLES) return -1
+        val position = positionAt(time)
+        val dot = position % SCANLINE_CYCLES
+        if (position / SCANLINE_CYCLES >= SCREEN_HEIGHT || dot >= OAM_CYCLES) return -1
+        return dot / 4 * OAM_ROW
+    }
+
+    fun corruptOamWrite() = corruptScannedRow(false)
+
+    fun corruptOamRead() = corruptScannedRow(true)
+
+    private fun corruptScannedRow(read: Boolean) {
+        val row = scannedOamRow()
+        if (row <= 0) return
+        drawDueLines(scheduler.clock)
+        val preceding = row - OAM_ROW
+        for (i in 0..1) {
+            val a = oam[row + i].toInt()
+            val b = oam[preceding + i].toInt()
+            val c = oam[preceding + 4 + i].toInt()
+            oam[row + i] = (if (read) b or (a and c) else ((a xor c) and (b xor c)) xor c).toByte()
+        }
+        oam.copyInto(oam, row + 2, preceding + 2, row)
+    }
+
+    fun corruptOamIncrease() {
+        val row = scannedOamRow()
+        if (row < 4 * OAM_ROW || row == LAST_OAM_ROW) return
+        drawDueLines(scheduler.clock)
+        val preceding = row - OAM_ROW
+        for (i in 0..1) {
+            val a = oam[preceding - OAM_ROW + i].toInt()
+            val b = oam[preceding + i].toInt()
+            val c = oam[row + i].toInt()
+            val d = oam[preceding + 4 + i].toInt()
+            oam[preceding + i] = ((b and (a or c or d)) or (a and c and d)).toByte()
+        }
+        oam.copyInto(oam, preceding - OAM_ROW, preceding, row)
+        oam.copyInto(oam, row, preceding, row)
+    }
+
     // Mode 3 is latched from the line's own state the first time it is asked for
     private fun hblankDot(lineStart: Long, line: Int): Int {
         if (lineStart != latchedLine) {
@@ -639,6 +683,8 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         private const val TILE_DATA_SIZE = 0x1800
         private const val TILE_COUNT = 384
         private const val TILE_PIXELS = 8 * 8
+        private const val OAM_ROW = 8
+        private const val LAST_OAM_ROW = 19 * OAM_ROW
         private const val MAX_LINE_OBJECTS = 10
         private const val VBLANK_START = SCREEN_HEIGHT * SCANLINE_CYCLES
         private const val FRAME_CYCLES = SCANLINE_CYCLES * (LAST_LINE + 1)

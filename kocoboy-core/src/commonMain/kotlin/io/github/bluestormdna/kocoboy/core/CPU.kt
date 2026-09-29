@@ -162,6 +162,15 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
     private inline fun fetch(): Int = read(PC++)
 
+    private fun stepOnBus(value: Int) {
+        if (value ushr 8 == 0xFE) bus.corruptOamWrite()
+    }
+
+    private fun readStepping(addr: Int): Int {
+        if (addr ushr 8 == 0xFE) bus.corruptOamIncrease()
+        return read(addr)
+    }
+
     private var debug = false
 
     fun execute() {
@@ -231,7 +240,7 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
             0x28 -> jr(flagZ)
             0x29 -> dad(HL)
-            0x2A -> A = read(HL++)
+            0x2A -> A = readStepping(HL++)
             0x2B -> HL = decReg16(HL)
             0x2C -> L = incReg8(L)
             0x2D -> L = decReg8(L)
@@ -249,7 +258,7 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
             0x38 -> jr(flagC)
             0x39 -> dad(SP)
-            0x3A -> A = read(HL--)
+            0x3A -> A = readStepping(HL--)
             0x3B -> SP = decReg16(SP)
             0x3C -> A = incReg8(A)
             0x3D -> A = decReg8(A)
@@ -822,6 +831,7 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
         ime = false
         // Two internal cycles before PC goes out, one after to jump
         tick()
+        stepOnBus(SP)
         tick()
         write(--SP, PC.hi())
         // The vector is chosen after the high byte, which can land on IE and cancel the dispatch
@@ -999,11 +1009,13 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
     // 16-bit inc and dec take an internal cycle
     private fun incReg16(value: Int): Int {
+        stepOnBus(value)
         tick()
         return value + 1
     }
 
     private fun decReg16(value: Int): Int {
+        stepOnBus(value)
         tick()
         return value - 1
     }
@@ -1116,13 +1128,14 @@ class CPU(private val bus: Bus, private val scheduler: Scheduler) {
 
     // An internal cycle decrements SP before the high byte goes out
     private fun push(word: Int) {
+        stepOnBus(SP)
         tick()
         write(--SP, word.hi())
         write(--SP, word.lo())
     }
 
     private fun pop(): Int {
-        val lo = read(SP++)
+        val lo = readStepping(SP++)
         val hi = read(SP++)
         val value = hi shl 8 or lo
         return value
