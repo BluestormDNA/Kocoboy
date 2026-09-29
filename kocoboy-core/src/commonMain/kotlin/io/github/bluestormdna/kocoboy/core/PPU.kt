@@ -9,11 +9,15 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
     private var windowTriggeredThisFrame = false
     private val frameBuffer = IntArray(160 * 144)
 
-    val vRam = ByteArray(0x2000)
+    private val vRam = ByteArray(0x2000)
+
     val oam = ByteArray(0xA0)
 
+    // Every pixel of 8000-97FF as its colour id, 8 per tile row, kept in step with vRam by writeVram
+    private val tileIds = ByteArray(TILE_COUNT * TILE_PIXELS)
+
     // per scanline BG colour ids, sprite priority is decided on the id not the shade
-    private val bgColorZero = BooleanArray(160)
+    private val lineIds = ByteArray(SCREEN_WIDTH)
 
     // PPU Regs
     private var lcdc: Byte = 0 // FF40 - LCDC - LCD Control (R/W)
@@ -126,6 +130,23 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         return line < SCREEN_HEIGHT && dot >= OAM_CYCLES && dot < hblankDot(time - dot, line)
     }
 
+    fun readVram(addr: Int): Byte = vRam[addr]
+
+    fun writeVram(addr: Int, value: Byte) {
+        vRam[addr] = value
+        if (addr < TILE_DATA_SIZE) {
+            val row = addr and 1.inv()
+            val low = vRam[row].toInt()
+            val high = vRam[row + 1].toInt()
+            val first = row * 4
+            for (p in 0..7) {
+                val bit = 7 - p
+                val id = (low ushr bit and 1) or ((high ushr bit and 1) shl 1)
+                tileIds[first + p] = id.toByte()
+            }
+        }
+    }
+
     // Reads lose OAM as LY moves to a visible line, writes only once its OAM scan starts
     fun oamReadBlocked(): Boolean {
         if (!isEnabled) return false
@@ -171,7 +192,7 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         var windowTiles = 0L
         var objects = 0
         for (i in 0..<count) {
-            val x = readOAM(orderBuffer[i] + 1)
+            val x = oam[orderBuffer[i] + 1].toInt() and 0xFF
             if (x < SCREEN_WIDTH + 8) {
                 val pixel = x - 8
                 val inWindow = window && pixel >= windowX
@@ -212,7 +233,6 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
                     windowTriggeredThisFrame = false
                     // the panel goes blank white while the LCD is off, not frozen on the last frame
                     frameBuffer.fill(color[0])
-                    bgColorZero.fill(true)
                     host.render(frameBuffer)
                 }
 
@@ -382,10 +402,9 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
 
     // BG off renders white, and counts as colour 0 everywhere for sprite priority
     private fun blankScanLine(line: Int) {
-        for (p in 0..<SCREEN_WIDTH) {
-            frameBuffer.write(p, line, color[0])
-            bgColorZero[p] = true
-        }
+        val start = line * SCREEN_WIDTH
+        frameBuffer.fill(color[0], start, start + SCREEN_WIDTH)
+        lineIds.fill(0)
     }
 
     private fun renderBG(line: Int) {
@@ -396,47 +415,61 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         if (line == WY) windowTriggeredThisFrame = true
         val isWin = isBit(5, lcdc) && windowTriggeredThisFrame
 
-        val windowTileMapAddress = getWindowTileMapAddress(lcdc)
-        val bgTileMapAddress = getBackgroundTileMapAddress(lcdc)
-        var hi: Byte = 0
-        var lo: Byte = 0
+        // Where the window takes over
+        val split = if (isWin) WX.coerceIn(0, SCREEN_WIDTH) else SCREEN_WIDTH
 
-        var windowAppeared = false
+        drawSegment(window = false, 0, split, SCX, (line + SCY) and 0xFF)
+        drawSegment(window = true, split, SCREEN_WIDTH, -WX, windowInternalLine)
+
         for (p in 0..<SCREEN_WIDTH) {
-            val inWin = isWin && p >= WX
-            windowAppeared = windowAppeared or inWin
-            val x = if (inWin) (p - WX) and 0xFF else (p + SCX) and 0xFF
-            if (p == 0 || (x and 0x7) == 0) {
-                val tileCol = x / 8
-                val tileMap = if (inWin) windowTileMapAddress else bgTileMapAddress
-                val y = if (inWin) windowInternalLine else (line + SCY) and 0xFF
-
-                val tileLine = (y and 7) * 2
-                val tileRow = y / 8 * 32
-                val tileAddress = tileMap + tileRow + tileCol
-
-                val tileLoc = if (isSignedAddress(lcdc)) {
-                    getTileDataAddress(lcdc) + readVRAM(tileAddress) * 16
-                } else {
-                    // Signed
-                    getTileDataAddress(lcdc) + (readVRAM(tileAddress).toByte() + 128) * 16
-                }
-
-                lo = readVRAM((tileLoc + tileLine)).toByte()
-                hi = readVRAM((tileLoc + tileLine + 1)).toByte()
-            }
-
-            val colorBit = 7 - (x and 7) // reversed
-            val colorId = getColorIdBits(colorBit, lo, hi)
-            val color = backgroundPalette[colorId]
-
-            bgColorZero[p] = colorId == 0
-            frameBuffer.write(p, line, color)
+            frameBuffer.write(p, line, backgroundPalette[lineIds[p].toInt()])
         }
 
-        if (windowAppeared) {
+        if (split < SCREEN_WIDTH) {
             windowInternalLine++
         }
+    }
+
+    // Fetch and emit tile rows over [from, end), the source scrolled by offset
+    private fun drawSegment(window: Boolean, from: Int, end: Int, offset: Int, y: Int) {
+        var p = from
+        while (p < end) {
+            val x = (p + offset) and 0xFF
+            p += emitTileRow(fetchTileRow(window, x / 8, y), x and 7, p, end)
+        }
+    }
+
+    // Where one tile row starts in tileIds; LCDC is sampled per fetch
+    private fun fetchTileRow(window: Boolean, tileCol: Int, y: Int): Int {
+        val tileMap = if (window) {
+            getWindowTileMapOffset(lcdc)
+        } else {
+            getBackgroundTileMapOffset(lcdc)
+        }
+        val tile = vRam[tileMap + y / 8 * 32 + tileCol]
+        // Bit 4 - BG & Window Tile Data Select (0 = signed from 9000, 1 = 8000-8FFF), in tiles
+        val tileIndex = if (isBit(4, lcdc)) tile.toInt() and 0xFF else 256 + tile
+        return (tileIndex * 8 + (y and 7)) * 8
+    }
+
+    // Pixels of the tile row at [row] from [start] on, stopping at [end]; returns how many were written
+    private fun emitTileRow(row: Int, start: Int, p: Int, end: Int): Int {
+        val count = minOf(8 - start, end - p)
+        if (count == 8) {
+            lineIds[p] = tileIds[row]
+            lineIds[p + 1] = tileIds[row + 1]
+            lineIds[p + 2] = tileIds[row + 2]
+            lineIds[p + 3] = tileIds[row + 3]
+            lineIds[p + 4] = tileIds[row + 4]
+            lineIds[p + 5] = tileIds[row + 5]
+            lineIds[p + 6] = tileIds[row + 6]
+            lineIds[p + 7] = tileIds[row + 7]
+            return 8
+        }
+        for (i in 0..<count) {
+            lineIds[p + i] = tileIds[row + start + i]
+        }
+        return count
     }
 
     private val orderBuffer = IntArray(MAX_LINE_OBJECTS) // Oam Indexes
@@ -471,10 +504,6 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         }
     }
 
-    private fun readOAM(addr: Int): Int = oam[addr].toInt() and 0xFF
-
-    private fun readVRAM(addr: Int): Int = vRam[addr and 0x1FFF].toInt() and 0xFF
-
     private fun renderSpritesBuffer(line: Int) {
         val spriteSize = spriteSize(lcdc)
 
@@ -485,43 +514,36 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         // Highest X first, so the lowest X is drawn last and wins
         while (--orderBufferPointer >= 0) {
             val index = orderBuffer[orderBufferPointer]
-            val x = readOAM(index + 1) - 8 // Byte1 - X Position //needs 8 offset
+            val x = (oam[index + 1].toInt() and 0xFF) - 8 // Byte1 - X Position //needs 8 offset
             // Out of range X values are not drawn but will consume
             // sprite object slots towards the 10 limit (hence not filtering them on the mmu)
-            if (x <= -8 || x >= 160) continue
+            if (x <= -8 || x >= SCREEN_WIDTH) continue
 
-            val y = readOAM(index) - 16 // Byte0 - Y Position //needs 16 offset
-            val tile = readOAM(index + 2) // Byte2 - Tile/Pattern Number
-            val attr = readOAM(index + 3).toByte() // Byte3 - Attributes/Flags
+            val y = (oam[index].toInt() and 0xFF) - 16 // Byte0 - Y Position //needs 16 offset
+            val tile = oam[index + 2].toInt() and 0xFF // Byte2 - Tile/Pattern Number
+            val attr = oam[index + 3] // Byte3 - Attributes/Flags
             val tileIndex = tile and (spriteSize shr 4).inv()
 
             // Bit4   Palette number  **Non CGB Mode Only** (0=OBP0, 1=OBP1)
             val palette = if (isBit(4, attr)) objectPalette1 else objectPalette0
 
-            val tileRow = if (isYFlipped(attr)) {
-                spriteSize - 1 - (line - y)
-            } else {
-                (
-                    line -
-                        y
-                    )
-            }
+            val tileRow = if (isYFlipped(attr)) spriteSize - 1 - (line - y) else line - y
 
-            val tileAddress = ((0x8000 + (tileIndex * 16) + (tileRow * 2)))
-            val lo = readVRAM(tileAddress)
-            val hi = readVRAM(tileAddress + 1)
+            // Sprites always take their tiles from 0x8000, the start of tileIds
+            val row = (tileIndex * 8 + tileRow) * 8
+            val above = isAboveBG(attr)
+            // Flipped in X reads the row from the other end
+            val flipped = isXFlipped(attr)
+            val first = if (flipped) row + 7 else row
+            val step = if (flipped) -1 else 1
 
-            for (p in 0..7) {
-                if ((x + p) >= 0 && (x + p) < SCREEN_WIDTH) {
-                    val idPos = if (isXFlipped(attr)) p else 7 - p
-                    val colorId: Int = getColorIdBits(idPos, lo.toByte(), hi.toByte())
-
-                    if (!isTransparent(colorId) &&
-                        (isAboveBG(attr) || bgColorZero[x + p])
-                    ) {
-                        val color = palette[colorId]
-                        frameBuffer.write(x + p, line, color)
-                    }
+            // Clamp to the screen once instead of testing every pixel
+            val from = if (x < 0) -x else 0
+            val to = if (x + 8 > SCREEN_WIDTH) SCREEN_WIDTH - x else 8
+            for (p in from..<to) {
+                val colorId = tileIds[first + step * p].toInt()
+                if (colorId != 0 && (above || lineIds[x + p].toInt() == 0)) {
+                    frameBuffer.write(x + p, line, palette[colorId])
                 }
             }
         }
@@ -542,43 +564,23 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         return isBit(6, attr)
     }
 
-    private inline fun isTransparent(b: Int): Boolean = b == 0
-
     private inline fun isAboveBG(attr: Byte): Boolean {
         // Bit7 OBJ-to - BG Priority(0 = OBJ Above BG, 1 = OBJ Behind BG color 1 - 3)
         return attr.toUInt() and 0x80u == 0u
     }
 
-    private inline fun isSignedAddress(LCDC: Byte): Boolean {
-        // Bit 4 - BG & Window Tile Data Select   (0=8800-97FF, 1=8000-8FFF)
-        return isBit(4, LCDC)
+    private inline fun getBackgroundTileMapOffset(LCDC: Byte): Int {
+        // Bit 3 - BG Tile Map Display Select     (0=9800-9BFF, 1=9C00-9FFF), as vRam offsets
+        return if (isBit(3, LCDC)) 0x1C00 else 0x1800
     }
 
-    private inline fun getBackgroundTileMapAddress(LCDC: Byte): Int {
-        // Bit 3 - BG Tile Map Display Select     (0=9800-9BFF, 1=9C00-9FFF)
-        return if (isBit(3, LCDC)) 0x9C00 else 0x9800
+    private inline fun getWindowTileMapOffset(LCDC: Byte): Int {
+        // Bit 6 - Window Tile Map Display Select(0 = 9800 - 9BFF, 1 = 9C00 - 9FFF), as vRam offsets
+        return if (isBit(6, LCDC)) 0x1C00 else 0x1800
     }
-
-    private inline fun getWindowTileMapAddress(LCDC: Byte): Int {
-        // Bit 6 - Window Tile Map Display Select(0 = 9800 - 9BFF, 1 = 9C00 - 9FFF)
-        return if (isBit(6, LCDC)) 0x9C00 else 0x9800
-    }
-
-    private inline fun getTileDataAddress(LCDC: Byte): Int {
-        // Bit 4 - BG & Window Tile Data Select   (0=8800-97FF, 1=8000-8FFF)
-        return if (isBit(4, LCDC)) 0x8000 else 0x8800 // 0x8800 signed area
-    }
-
-    private inline fun IntArray.read(x: Int, y: Int): Int = this[x + (y * SCREEN_WIDTH)]
 
     private inline fun IntArray.write(x: Int, y: Int, color: Int) {
         this[x + (y * SCREEN_WIDTH)] = color
-    }
-
-    private fun getColorIdBits(colorBit: Int, l: Byte, h: Byte): Int {
-        val hi = (h.toInt() shr colorBit) and 0x1
-        val lo = (l.toInt() shr colorBit) and 0x1
-        return (hi shl 1 or lo) and 0xFF
     }
 
     fun reset() {
@@ -604,8 +606,9 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         backgroundPalette.fill(0)
         objectPalette0.fill(0)
         objectPalette1.fill(0)
-        bgColorZero.fill(false)
+        lineIds.fill(0)
         vRam.fill(0)
+        tileIds.fill(0)
         oam.fill(0)
         frameBuffer.fill(color[0])
         host.render(frameBuffer)
@@ -633,6 +636,9 @@ class PPU(private val host: Host, private val scheduler: Scheduler) {
         private const val HBLANK_DOT = OAM_CYCLES + VRAM_CYCLES
         private const val SCANLINE_CYCLES = 456
         private const val LINE_END_DOT = SCANLINE_CYCLES - 4
+        private const val TILE_DATA_SIZE = 0x1800
+        private const val TILE_COUNT = 384
+        private const val TILE_PIXELS = 8 * 8
         private const val MAX_LINE_OBJECTS = 10
         private const val VBLANK_START = SCREEN_HEIGHT * SCANLINE_CYCLES
         private const val FRAME_CYCLES = SCANLINE_CYCLES * (LAST_LINE + 1)
